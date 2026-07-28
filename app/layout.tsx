@@ -21,9 +21,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Optimus - Platform to Create',
-  description: 'The creative platform for teams who ship. Build, deploy, and scale with unprecedented velocity.',
+  title: 'GrinFlow — The Intelligence Layer for Food Supply Chains',
+  description:
+    'GrinFlow turns fragmented operational communication into coordinated decisions—without asking organizations to change how they work.',
   generator: 'v0.app',
+  icons: {
+    icon: '/grinflow-icon.svg',
+  },
 }
 
 export default function RootLayout({
@@ -32,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="bg-background">
       <body className={`${instrumentSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         {children}
         <Analytics />

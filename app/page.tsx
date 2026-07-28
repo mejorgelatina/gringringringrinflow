@@ -1,33 +1,29 @@
-import { Navigation } from "@/components/landing/navigation";
-import { HeroSection } from "@/components/landing/hero-section";
-import { FeaturesSection } from "@/components/landing/features-section";
-import { HowItWorksSection } from "@/components/landing/how-it-works-section";
-import { InfrastructureSection } from "@/components/landing/infrastructure-section";
-import { MetricsSection } from "@/components/landing/metrics-section";
-import { IntegrationsSection } from "@/components/landing/integrations-section";
-import { SecuritySection } from "@/components/landing/security-section";
-import { DevelopersSection } from "@/components/landing/developers-section";
-import { TestimonialsSection } from "@/components/landing/testimonials-section";
-import { PricingSection } from "@/components/landing/pricing-section";
-import { CtaSection } from "@/components/landing/cta-section";
-import { FooterSection } from "@/components/landing/footer-section";
+import { SiteHeader } from "@/components/grinflow/site-header"
+import { HeroSection } from "@/components/grinflow/hero-section"
+import { ProblemSection } from "@/components/grinflow/problem-section"
+import { LearnedSection } from "@/components/grinflow/learned-section"
+import { PhilosophySection } from "@/components/grinflow/philosophy-section"
+import { HowItWorksSection } from "@/components/grinflow/how-it-works-section"
+import { DemoSection } from "@/components/grinflow/demo-section"
+import { StorySection } from "@/components/grinflow/story-section"
+import { StatusSection } from "@/components/grinflow/status-section"
+import { VisionFooter } from "@/components/grinflow/vision-footer"
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen overflow-x-hidden noise-overlay">
-      <Navigation />
-      <HeroSection />
-      <FeaturesSection />
-      <HowItWorksSection />
-      <InfrastructureSection />
-      <MetricsSection />
-      <IntegrationsSection />
-      <SecuritySection />
-      <DevelopersSection />
-      <TestimonialsSection />
-      <PricingSection />
-      <CtaSection />
-      <FooterSection />
-    </main>
-  );
+    <div className="min-h-screen">
+      <SiteHeader />
+      <main>
+        <HeroSection />
+        <ProblemSection />
+        <LearnedSection />
+        <PhilosophySection />
+        <HowItWorksSection />
+        <DemoSection />
+        <StorySection />
+        <StatusSection />
+      </main>
+      <VisionFooter />
+    </div>
+  )
 }
