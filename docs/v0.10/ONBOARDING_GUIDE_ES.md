@@ -47,7 +47,7 @@ Estas categorías describen el diseño previsto. La integración real con estos 
 Flujo actual:
 
 1. La persona escribe un mensaje en español.
-2. El servidor usa Meta Model API si `MODEL_API_KEY` está configurada; de lo contrario usa una heurística local de demostración, claramente distinta de una llamada a Meta.
+2. El servidor solo usa Meta Model API si `MODEL_API_KEY` está configurada **y** `META_CALLS_ENABLED=true`. La bandera debe permanecer en `false` en previews y despliegues donde no quieras gastar créditos. En cualquier otro caso usa una heurística local de demostración, claramente distinta de una llamada a Meta.
 3. La extracción se valida contra un esquema tipado.
 4. Se comprueba que la cita de evidencia aparezca literalmente en el mensaje original.
 5. Un motor determinista evalúa destinos y capacidades sintéticos.
@@ -101,7 +101,7 @@ npm test
 npm run dev
 ```
 
-Abrir `http://localhost:3000`. Sin `MODEL_API_KEY`, la app debe indicar que usa el fallback local; eso sirve para desarrollo visual, no demuestra que Meta funciona.
+Abrir `http://localhost:3000`. Con `META_CALLS_ENABLED=false` (valor predeterminado), la app debe usar el fallback local incluso si hay una clave configurada; eso sirve para desarrollo visual, no demuestra que Meta funciona. Para habilitar llamadas, confirma primero el saldo y cambia la bandera a `true` de forma intencional.
 
 Para TypeScript y build:
 

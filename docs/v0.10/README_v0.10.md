@@ -12,12 +12,12 @@ This package is v0.6. The core app scaffold and matching logic are unchanged fro
 - A server-side Meta Model API adapter using `https://api.meta.ai/v1` and `muse-spark-1.3` by default.
 - A clearly labelled local demo fallback when no API key is configured. It is not a Meta model call and must not be represented as one.
 - A deterministic matcher with hard blockers and synthetic recipients/transport capacities.
-- Node test coverage for critical safety/feasibility invariants (10 tests currently pass).
+- Node test coverage for critical safety/feasibility invariants (47 tests currently pass in this package revision).
 - Synthetic route assumptions so a pickup in Roma can match a recipient in Centro without incorrectly requiring pickup and delivery to be in the same neighborhood. Unknown routes remain blocked.
 - Server-side request IDs, bounded API timeout, no automatic SDK retries, and sanitized public API errors.
 - `META_OFFICE_HOURS_QUESTIONS.md` with ranked questions for Meta, including model availability, structured output, deployment, and credits.
 - `META_BILLING_AND_ACCESS.md` with the official billing/access steps shared by Meta, a diagnostic decision tree, and the distinction between direct API and partner model IDs.
-- `npm run smoke:meta` diagnostic script that separates model listing, basic inference, and JSON-mode support without printing the API key.
+- `npm run smoke:meta` diagnostic script that separates model listing, basic inference, and JSON Schema structured-output support without printing the API key.
 - `DEPLOYMENT_GUIDE.md` for Vercel + public GitHub setup.
 - Explicit synthetic-data and simulated-outcome messaging.
 
@@ -30,7 +30,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. Without `MODEL_API_KEY`, the app uses the local fallback and labels it. To test Meta, add a valid key to `.env.local`. First follow `META_BILLING_AND_ACCESS.md`: a payment method is required and credits must be visible on Billing before inference calls. Run `npm run smoke:meta` to separate listing, inference, and JSON-mode checks.
+Open http://localhost:3000. The app uses the local fallback unless both `MODEL_API_KEY` is configured and `META_CALLS_ENABLED=true` is explicitly set. Keep the flag `false` for previews. To test Meta, first follow `META_BILLING_AND_ACCESS.md`: a payment method is required and credits must be visible on Billing before inference calls. `npm run smoke:meta` intentionally makes two inference requests and may consume credits; run it only when you choose to test.
 
 ```bash
 npm test

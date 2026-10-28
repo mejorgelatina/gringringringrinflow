@@ -2,7 +2,8 @@
 /**
  * Safe Meta Model API diagnostic.
  * Run with MODEL_API_KEY set in the environment. Never prints the key.
- * First tests model listing, then basic inference, then JSON mode separately.
+ * First tests model listing, then basic inference, then schema-constrained JSON output.
+ * This script makes two inference calls and may consume credits; run only by explicit choice.
  */
 const key = process.env.MODEL_API_KEY;
 const baseURL = (process.env.META_BASE_URL || "https://api.meta.ai/v1").replace(/\/$/, "");
@@ -60,28 +61,38 @@ if (!basic.ok) {
 const basicText = basic.parsed?.choices?.[0]?.message?.content;
 console.log(`   Inference succeeded. Response preview: ${String(basicText ?? "[no message content]").slice(0, 100)}`);
 
-const jsonMode = await request("/chat/completions", {
+const structured = await request("/chat/completions", {
   model,
-  temperature: 0,
-  response_format: { type: "json_object" },
   messages: [
-    { role: "system", content: "Return a JSON object with one key, ok, whose value is true." },
-    { role: "user", content: "Return the JSON object." }
-  ]
+    { role: "system", content: "Return an object whose ok field is true." },
+    { role: "user", content: "Return the requested object." }
+  ],
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "smoke_check",
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: { ok: { type: "boolean" } },
+        required: ["ok"]
+      }
+    }
+  }
 });
-console.log(`3. JSON-mode inference: HTTP ${jsonMode.status}`);
-if (!jsonMode.ok) {
-  console.error(`   Failed: ${summarizeFailure(jsonMode)}`);
-  console.error("   Basic inference works; investigate endpoint/model support for JSON mode or response_format.");
+console.log(`3. JSON Schema structured-output inference: HTTP ${structured.status}`);
+if (!structured.ok) {
+  console.error(`   Failed: ${summarizeFailure(structured)}`);
+  console.error("   Basic inference works; investigate structured-output schema support/request format.");
   process.exit(1);
 }
 try {
-  const content = jsonMode.parsed?.choices?.[0]?.message?.content;
+  const content = structured.parsed?.choices?.[0]?.message?.content;
   const obj = JSON.parse(content);
   if (obj.ok !== true) throw new Error("Expected { ok: true }");
-  console.log("   JSON mode succeeded and returned valid JSON.");
+  console.log("   JSON Schema structured output succeeded and returned valid JSON.");
 } catch (error) {
   console.error(`   Request succeeded but response did not validate as expected: ${error instanceof Error ? error.message : "unknown error"}`);
   process.exit(1);
 }
-console.log("PASS: model listing, basic inference, and JSON mode all succeeded.");
+console.log("PASS: model listing, basic inference, and JSON Schema structured output all succeeded.");

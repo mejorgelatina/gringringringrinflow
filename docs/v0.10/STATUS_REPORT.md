@@ -42,3 +42,12 @@ All demo records are synthetic and browser-local. Do not store real personal dat
 4. Wire candidate engine to API, not directly to client state.
 5. Add route provider only after credentials, spend limits and source attribution are confirmed.
 6. Run a supervised pilot with explicit partner consent and verified safety/transport checks.
+
+
+## Meta API docs validation addendum (v0.10.1 patch)
+
+- Official docs confirm `https://api.meta.ai/v1`, model ID `muse-spark-1.3`, and both `POST /v1/chat/completions` and `POST /v1/responses` are supported. Chat Completions is appropriate for this app's single-turn messages-array extraction; Responses is recommended when agentic multi-turn reasoning continuity or Responses-only features are needed.
+- Official structured-output docs demonstrate `response_format.type = "json_schema"` on Chat Completions. The adapter now sends an explicit schema for the extraction shape and retains Zod validation plus exact-quote verification.
+- Added an explicit `META_CALLS_ENABLED === "true"` gate to `/api/intake`; a key alone no longer triggers inference. `.env.example` defaults this flag to false.
+- Updated the optional smoke test to test JSON Schema structured output. It makes paid inference calls and must only be run intentionally.
+- No live Meta calls were made during this patch; model/account access and actual provider acceptance remain unverified until an intentional smoke test.
