@@ -31,3 +31,43 @@ To learn more, take a look at the following resources:
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 - [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+
+## GrinFlow v0.10 + coordination loop
+
+This repo now carries the v0.10 package (engines, console, demo APIs, docs, migrations) next to the landing page.
+
+| Route | What it is |
+| --- | --- |
+| `/` | Landing page (unchanged) |
+| `/demo/flujo` | Offer → missing data → confirmation → proposals → route review → human decision |
+| `/intake` | v0.10 message intake and extraction (local fallback; see Meta below) |
+| `/platform` | v0.10 logistics console (browser-local synthetic data) |
+| `POST /api/demo/offer-flow` | The full loop in memory. Body optional: `answers`, `reviewRouteIndex`, `decision`, `offer`, `destinations`, `vehicles` |
+| `POST /api/demo/match-preview`, `POST /api/demo/backhaul-preview` | v0.10 stateless previews ([examples](docs/v0.10/DEMO_API_EXAMPLES_ES.md)) |
+| `POST /api/intake` | v0.10 extraction endpoint |
+
+The landing and the v0.10 screens use separate root layouts (`app/(site)`, `app/(ops)`) so their global styles never mix.
+
+### How the loop uses the v0.10 engines
+
+- `lib/engines/` holds the v0.10 engines unchanged except for JSDoc type hints: `interactions.mjs`, `match-engine.mjs`, `backhaul.mjs`, `logistics.mjs`, `matching.mjs`.
+- `lib/grinflow/` is the flow on top of them. Requests to the donor are created and answered through the Human Interaction Layer (`interactions.mjs`): an answer only updates the data it was about and never approves anything; silence leaves data unconfirmed.
+- Candidates are evaluated by `match-engine.mjs`: hard gates first, score only for eligible candidates. The flow adds pickup/delivery window checks the engine does not do.
+- The engine never accepts an unverified route. In the demo an operator reviews the straight-line estimate (`reviewRoute`), which is logged; a route provider can replace that step later.
+- Only an operator can approve or reject; approval places a hold, not a pickup. Every step appends to a sequential event log with before/after values.
+
+### Meta credits
+
+`/api/intake` only calls the Meta Model API when `MODEL_API_KEY` is set **and** `META_CALLS_ENABLED=true`. Without both, it uses the local fallback, so preview deployments never spend credits by accident. See `.env.example`.
+
+### Checks
+
+```bash
+pnpm install --frozen-lockfile
+pnpm test        # node --test: flow tests + the 44 v0.10 tests (Node 22.6+)
+pnpm typecheck
+pnpm build
+curl -s -X POST localhost:3000/api/demo/offer-flow -d '{"decision":{"outcome":"approved"}}'
+```
+
+All places, distances and availability in the demos are synthetic. Distances are straight-line estimates, not verified routes. v0.10 documentation is in [`docs/v0.10/`](docs/v0.10/), proposed migrations in `db/migrations/` (not applied anywhere).

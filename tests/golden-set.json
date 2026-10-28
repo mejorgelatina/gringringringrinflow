@@ -1,0 +1,364 @@
+{
+  "version": "1.0",
+  "note": "Golden set for the GrinFlow extractor. Messages are written the way the network actually writes: no accents, no punctuation, abbreviations, voice-note transcriptions. `expect.kind: null` means the message carries no operational event. Cases marked `hard: true` are the ones the rule-based baseline is not expected to pass — they are the specification for what the LLM extractor must add.",
+  "cases": [
+    {
+      "id": "g01",
+      "body": "Tengo 40 cajas de pan, hay que sacarlas antes de que cierren a las 8, estan frescas",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 40,
+        "unit": "caja",
+        "category": "panificados",
+        "edibility": "edible",
+        "needsReview": false
+      }
+    },
+    {
+      "id": "g02",
+      "body": "Tengo pan",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": null,
+        "unit": null,
+        "category": "panificados",
+        "edibility": "unknown",
+        "needsReview": true
+      }
+    },
+    {
+      "id": "g03",
+      "body": "me quedaron como unas 20 cajas de pan frescas",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 20,
+        "unit": "caja",
+        "category": "panificados",
+        "edibility": "edible",
+        "needsReview": true
+      },
+      "why": "estimated quantity never auto-promotes"
+    },
+    {
+      "id": "g04",
+      "body": "Nos llegaron 3 tarimas de jitomate y ya no tenemos donde meterlas",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 3,
+        "unit": "tarima",
+        "category": "verduras",
+        "edibility": "unknown",
+        "needsReview": true,
+        "eventCount": 2
+      },
+      "why": "storage pressure splits into its own constraint_reported event"
+    },
+    {
+      "id": "g05",
+      "body": "necesitamos verdura para 80 despensas el viernes",
+      "expect": {
+        "kind": "demand_declared",
+        "quantity": 80,
+        "unit": "despensa",
+        "category": "verduras",
+        "edibility": "unknown",
+        "needsReview": false
+      },
+      "why": "cantidad, producto y fecha explícitos: una demanda así no necesita revisión"
+    },
+    {
+      "id": "g06",
+      "body": "manana salgo a Toluca a las 7, voy vacio de regreso",
+      "expect": {
+        "kind": "capacity_offered",
+        "quantity": null,
+        "unit": null,
+        "category": null,
+        "edibility": "unknown",
+        "needsReview": false
+      }
+    },
+    {
+      "id": "g07",
+      "body": "ya no va a poder ser lo de hoy",
+      "expect": {
+        "kind": "status_update",
+        "quantity": null,
+        "unit": null,
+        "category": null,
+        "edibility": "unknown",
+        "needsReview": true
+      }
+    },
+    {
+      "id": "g08",
+      "body": "son 20 no 40 perdon",
+      "expect": {
+        "kind": "correction",
+        "quantity": null,
+        "unit": null,
+        "category": null,
+        "edibility": "unknown",
+        "needsReview": true
+      }
+    },
+    {
+      "id": "g09",
+      "body": "alguien sabe a que hora abre el banco de alimentos",
+      "expect": {
+        "kind": null
+      }
+    },
+    {
+      "id": "g10",
+      "body": "gracias por lo de ayer",
+      "expect": {
+        "kind": null
+      }
+    },
+    {
+      "id": "g11",
+      "body": "ok",
+      "expect": {
+        "kind": null
+      }
+    },
+    {
+      "id": "g12",
+      "body": "va",
+      "expect": {
+        "kind": null
+      }
+    },
+    {
+      "id": "g13",
+      "body": "junte 5 costales de cascaras del dia",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 5,
+        "unit": "costal",
+        "category": "organico",
+        "edibility": "inedible",
+        "needsReview": false
+      },
+      "why": "residuo inequívoco con cantidad declarada; sólo puede ir a valorización"
+    },
+    {
+      "id": "g14",
+      "body": "tengo 12 botes de merma",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 12,
+        "unit": "bote",
+        "category": "organico",
+        "edibility": "inedible",
+        "needsReview": false
+      },
+      "why": "residuo inequívoco con cantidad declarada; sólo puede ir a valorización"
+    },
+    {
+      "id": "g15",
+      "body": "tengo 3 tarimas de jitomate algo maltratadas pero sirven",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 3,
+        "unit": "tarima",
+        "category": "verduras",
+        "edibility": "past_prime",
+        "needsReview": false
+      },
+      "why": "past_prime sólo llega a quien declaró aceptarlo — la factibilidad lo contiene"
+    },
+    {
+      "id": "g16",
+      "body": "3 cajas de jitomate que ya se echo a perder",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 3,
+        "unit": "caja",
+        "category": "verduras",
+        "edibility": "inedible",
+        "needsReview": true
+      }
+    },
+    {
+      "id": "g17",
+      "body": "tengo 30 kg de queso fresco sin abrir",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 30,
+        "unit": "kg",
+        "category": "lacteos",
+        "edibility": "edible",
+        "needsReview": false
+      },
+      "why": "cold-chain constraint must be attached"
+    },
+    {
+      "id": "g18",
+      "body": "quedan cuarenta cajas de pan de ayer",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 40,
+        "unit": "caja",
+        "category": "panificados",
+        "edibility": "past_prime",
+        "needsReview": false
+      },
+      "why": "número en palabra, producto y condición explícitos"
+    },
+    {
+      "id": "g19",
+      "body": "urge quien recoja en la central hoy antes de las 6",
+      "expect": {
+        "kind": "demand_declared",
+        "quantity": null,
+        "unit": null,
+        "category": null,
+        "edibility": "unknown",
+        "needsReview": true
+      },
+      "hard": true,
+      "why": "a request for transport phrased as urgency, with no item at all"
+    },
+    {
+      "id": "g20",
+      "body": "buenas, de parte del comedor: nos hacen falta como 15 kilos de fruta para el jueves",
+      "expect": {
+        "kind": "demand_declared",
+        "quantity": 15,
+        "unit": "kg",
+        "category": "frutas",
+        "edibility": "unknown",
+        "needsReview": true
+      }
+    },
+    {
+      "id": "g21",
+      "body": "paso por el pan a las 5 y lo llevo a santa fe",
+      "expect": {
+        "kind": "capacity_offered",
+        "quantity": null,
+        "unit": null,
+        "category": "panificados",
+        "edibility": "unknown",
+        "needsReview": false
+      },
+      "hard": true,
+      "why": "capacity and an implied destination in one line"
+    },
+    {
+      "id": "g22",
+      "body": "ya lo recogieron, todo bien",
+      "expect": {
+        "kind": "status_update",
+        "quantity": null,
+        "unit": null,
+        "category": null,
+        "edibility": "unknown",
+        "needsReview": true
+      }
+    },
+    {
+      "id": "g23",
+      "body": "si se pudo, entregamos las 38 cajas",
+      "expect": {
+        "kind": "status_update",
+        "quantity": 38,
+        "unit": "caja",
+        "category": null,
+        "edibility": "unknown",
+        "needsReview": true
+      },
+      "hard": true,
+      "why": "an outcome report carrying the real quantity — the most valuable message in the channel"
+    },
+    {
+      "id": "g24",
+      "body": "se acumularon 2 rejas de platano muy maduro",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 2,
+        "unit": "reja",
+        "category": "frutas",
+        "edibility": "past_prime",
+        "needsReview": false
+      },
+      "why": "past_prime sólo llega a quien declaró aceptarlo"
+    },
+    {
+      "id": "g25",
+      "body": "hay 200 piezas de bolillo del dia anterior",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 200,
+        "unit": "pieza",
+        "category": "panificados",
+        "edibility": "past_prime",
+        "needsReview": false
+      },
+      "why": "past_prime sólo llega a quien declaró aceptarlo"
+    },
+    {
+      "id": "g26",
+      "body": "el mes pasado nos sobro mucho pan",
+      "expect": {
+        "kind": null
+      },
+      "hard": true,
+      "why": "past tense narration, not an offer — 'pasado' must not read as a food state"
+    },
+    {
+      "id": "g27",
+      "body": "tenemos 6 cajas de leche que caducan manana",
+      "expect": {
+        "kind": "supply_announced",
+        "quantity": 6,
+        "unit": "caja",
+        "category": "lacteos",
+        "edibility": "edible",
+        "needsReview": false
+      }
+    },
+    {
+      "id": "g28",
+      "body": "necesito 4 despensas",
+      "expect": {
+        "kind": "demand_declared",
+        "quantity": 4,
+        "unit": "despensa",
+        "category": "abarrotes",
+        "edibility": "unknown",
+        "needsReview": false
+      },
+      "why": "demanda corta pero completa: cantidad y unidad declaradas"
+    },
+    {
+      "id": "g29",
+      "body": "mi camioneta esta libre de 2 a 6 y cabe harto",
+      "expect": {
+        "kind": "capacity_offered",
+        "quantity": null,
+        "unit": null,
+        "category": null,
+        "edibility": "unknown",
+        "needsReview": true
+      },
+      "hard": true,
+      "why": "a time range rather than a deadline; 'harto' is an unquantified volume"
+    },
+    {
+      "id": "g30",
+      "body": "no pudimos ir, se nos hizo tarde y ya habian cerrado",
+      "expect": {
+        "kind": "status_update",
+        "quantity": null,
+        "unit": null,
+        "category": null,
+        "edibility": "unknown",
+        "needsReview": true
+      },
+      "why": "a failed action is an outcome too — the highest-value learning signal"
+    }
+  ]
+}

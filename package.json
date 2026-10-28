@@ -6,7 +6,11 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \"tests/**/*.test.ts\" \"tests/**/*.test.mjs\"",
+    "typecheck": "tsc --noEmit",
+    "evaluate": "node scripts/evaluate-golden.mjs",
+    "smoke:meta": "node scripts/smoke-meta.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -54,6 +58,7 @@
     "lucide-react": "^0.454.0",
     "next": "16.0.10",
     "next-themes": "^0.4.6",
+    "openai": "^5.23.2",
     "react": "19.2.0",
     "react-day-picker": "9.8.0",
     "react-dom": "19.2.0",

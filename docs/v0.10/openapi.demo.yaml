@@ -1,0 +1,106 @@
+openapi: 3.1.0
+info:
+  title: GrinFlow Demo Preview API
+  version: 0.9.0
+  description: >-
+    Stateless demonstration endpoints for deterministic matching and backhaul evaluation.
+    They do not persist data, call external providers, contact drivers, or dispatch operations.
+    Do not submit personal data. Production endpoints require a separate authenticated API.
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/demo/match-preview:
+    post:
+      summary: Rank supply-recipient-transport candidates
+      description: Accepts at most 20 KB and at most 20 recipients × 20 transports.
+      operationId: matchPreview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [offer, recipients, transports]
+              properties:
+                offer:
+                  type: object
+                  required: [category, quantity, unit, quantityConfirmed, condition, conditionConfirmed, deadline]
+                  properties:
+                    id: { type: string }
+                    category: { type: string, enum: [panificados, verduras, frutas, lacteos, abarrotes, proteina, organico, otro] }
+                    quantity: { type: number, exclusiveMinimum: 0 }
+                    unit: { type: string }
+                    quantityBasis: { type: string, enum: [stated, estimated, confirmed, unknown] }
+                    quantityConfirmed: { type: boolean }
+                    condition: { type: string, enum: [unknown, edible, past_prime, inedible] }
+                    conditionConfirmed: { type: boolean }
+                    deadline: { type: string }
+                recipients:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [id, name, categories, conditionPolicy, confirmed, capacity]
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+                      categories: { type: array, items: { type: string } }
+                      conditionPolicy: { type: array, items: { type: string } }
+                      confirmed: { type: boolean }
+                      capacity: { type: number, minimum: 0 }
+                      intendedUse: { type: string }
+                      availableUntil: { oneOf: [{ type: string }, { type: number }] }
+                transports:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [id, name, confirmed, capacity, unit]
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+                      confirmed: { type: boolean }
+                      capacity: { type: number, exclusiveMinimum: 0 }
+                      unit: { type: string }
+                      status: { type: string }
+                      availableUntil: { oneOf: [{ type: string }, { type: number }] }
+                routesByPair:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    required: [verified]
+                    properties:
+                      verified: { type: boolean }
+                      provider: { type: string }
+                      distanceKm: { type: number, minimum: 0 }
+                      durationMinutes: { type: number, minimum: 0 }
+                      estimatedArrivalAt: { type: integer, description: Unix timestamp in milliseconds }
+                      verifiedAt: { type: string }
+      responses:
+        '200':
+          description: Candidate list with blockers and scores (scores only for eligible candidates).
+        '400': { description: Invalid JSON or payload schema. }
+        '413': { description: Payload exceeds 20 KB. }
+  /api/demo/backhaul-preview:
+    post:
+      summary: Evaluate a return-trip pickup opportunity
+      description: Stateless; requires explicit consent, confirmed capacity and a verified route with positive net kilometer benefit.
+      operationId: backhaulPreview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trip, offer, recipient, route]
+              properties:
+                trip: { type: object, description: Confirmed first delivery, vehicle capacity, available window and carrier permission. }
+                offer: { type: object, description: Confirmed offer, food condition and explicit donor sharing consent. }
+                recipient: { type: object, description: Confirmed compatible recipient and condition policy. }
+                route: { type: object, description: Verified provider, pickup/delivery ETAs, incremental km, empty km avoided and duration. }
+      responses:
+        '200': { description: Feasibility, blockers, net kilometer benefit and human approval warning. }
+        '400': { description: Invalid JSON or payload schema. }
+        '413': { description: Payload exceeds 20 KB. }
