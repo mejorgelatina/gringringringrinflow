@@ -18,7 +18,7 @@ export function demoOffer(): Offer {
     donorId: DEMO_ACTORS.donor.id,
     rawMessage: "Hola, tengo 40 cajas de pan del día. Se puede recoger hoy de 18 a 20.",
     product: { value: "pan del día", status: "reported", source: "message" },
-    category: { value: "panaderia", status: "reported", source: "message" },
+    category: { value: "panificados", status: "reported", source: "message" },
     quantity: { value: 40, status: "reported", source: "message" },
     unit: { value: "cajas", status: "reported", source: "message" },
     weightKg: { value: null, status: "missing", source: null },
@@ -33,31 +33,34 @@ export const DEMO_DESTINATIONS: Destination[] = [
     id: "dest-comedor-doctores",
     name: "Comedor comunitario Doctores",
     use: "human_consumption",
-    acceptedCategories: ["panaderia", "fruta_verdura", "abarrotes"],
+    acceptedCategories: ["panificados", "verduras", "frutas", "abarrotes"],
     capacityKg: 150,
     location: { lat: 19.4167, lng: -99.1453 },
     receivingWindow: { start: at("17:00"), end: at("21:00") },
-    acceptsConditions: ["good", "near_expiry"],
+    acceptsConditions: ["edible"],
+    confirmed: true,
   },
   {
     id: "dest-albergue-norte",
     name: "Albergue Norte",
     use: "human_consumption",
-    acceptedCategories: ["panaderia", "lacteos"],
+    acceptedCategories: ["panificados", "lacteos"],
     capacityKg: 50,
     location: { lat: 19.4890, lng: -99.1270 },
     receivingWindow: { start: at("08:00"), end: at("19:00") },
-    acceptsConditions: ["good"],
+    acceptsConditions: ["edible"],
+    confirmed: true,
   },
   {
     id: "dest-compostaje-iztapalapa",
     name: "Planta de compostaje Iztapalapa",
     use: "valorization",
-    acceptedCategories: ["panaderia", "fruta_verdura", "preparados"],
+    acceptedCategories: ["panificados", "verduras", "frutas", "organico"],
     capacityKg: 2000,
     location: { lat: 19.3570, lng: -99.0590 },
     receivingWindow: { start: at("06:00"), end: at("22:00") },
-    acceptsConditions: ["good", "near_expiry", "damaged", "unknown"],
+    acceptsConditions: ["edible", "past_prime", "inedible", "unknown"],
+    confirmed: true,
   },
 ]
 
@@ -91,10 +94,10 @@ export const DEMO_VEHICLES: Vehicle[] = [
   },
 ]
 
-// Donor answers for the scripted walkthrough, in the order the questions are opened.
+// Donor answers for the scripted walkthrough: a response id from the request, or a free value.
 export const DEMO_ANSWERS: Record<string, string> = {
-  quantity: "si",
+  quantity: "confirm",
   weightKg: "60",
-  condition: "good",
-  pickupWindow: "si",
+  condition: "edible",
+  pickupWindow: "confirm",
 }

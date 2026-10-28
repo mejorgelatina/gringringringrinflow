@@ -10,7 +10,8 @@ export type TrackedField<T> = {
   source: string | null
 }
 
-export type Condition = "good" | "near_expiry" | "damaged" | "unknown"
+// Same vocabulary as the v0.10 engines and the extraction schema.
+export type Condition = "edible" | "past_prime" | "inedible" | "unknown"
 
 export type Use = "human_consumption" | "valorization"
 
@@ -43,8 +44,10 @@ export type Destination = {
   capacityKg: number
   location: Point
   receivingWindow: TimeWindow
-  // Tier-1 (people) destinations never take food of unknown or damaged condition.
+  // Tier-1 (people) destinations only take food confirmed as edible.
   acceptsConditions: Condition[]
+  // Capacity and availability confirmed by the receiver.
+  confirmed: boolean
 }
 
 export type Vehicle = {
@@ -62,45 +65,79 @@ export type Role = "donor" | "operator" | "receiver" | "driver"
 
 export type Actor = { id: string; role: Role; name: string }
 
-export type InteractionState = "open" | "answered" | "expired" | "cancelled"
+// Shape produced by lib/engines/interactions.mjs (Human Interaction Layer v0.10), plus the offer field it resolves.
+export type InteractionStatus = "pending" | "answered" | "expired" | "cancelled"
+
+export type AllowedResponse = { id: string; label: string; effect: string }
 
 export type Interaction = {
   id: string
-  offerId: string
-  field: OfferFieldName
-  kind: "clarify" | "confirm"
+  entityId: string
+  reasonCode: string
   targetRole: Role
   targetActorId: string | null
+  channel: string
   question: string
-  // null means free answer; otherwise the answer must be one of these.
-  allowedAnswers: string[] | null
-  createdAt: string
+  allowedResponses: AllowedResponse[]
   expiresAt: string
-  state: InteractionState
-  answer: string | null
-  answeredBy: string | null
-  answeredAt: string | null
-  history: { at: string; state: InteractionState; by: string | null; note: string | null }[]
+  status: InteractionStatus
+  createdAt: string
+  createdBy: string
+  response: {
+    responseId: string
+    label: string
+    effect: string
+    text: string
+    actorId: string
+    actorRole: Role
+    evidenceReference: string | null
+    at: string
+  } | null
+  events: { type: string; at: string; actor: string; [key: string]: unknown }[]
+  field: OfferFieldName
+  kind: "clarify" | "confirm"
 }
 
 export type Block = { code: string; message: string }
+
+export type RouteEstimate = {
+  distanceKm: number
+  durationMinutes: number
+  pickupAt: string | null
+  estimatedArrivalAt: string | null
+  source: "straight_line_estimate"
+}
+
+export type RouteReview = {
+  pairKey: string
+  reviewedBy: string
+  reviewedAt: string
+  distanceKm: number
+  durationMinutes: number
+  estimatedArrivalAt: string
+}
 
 export type Proposal = {
   id: string
   destinationId: string
   vehicleId: string
   feasible: boolean
+  // Blockers from the v0.10 match engine plus pickup/delivery window checks from this flow.
   blocks: Block[]
-  // Only meaningful when feasible; a high score never overrides a block.
+  warnings: Block[]
+  // v0.10 score in [0, 1]; only set when feasible. A score never overrides a block.
   score: number | null
+  scoreVersion: string
   reasons: string[]
-  distanceKm: number
+  estimate: RouteEstimate
+  routeReviewed: boolean
 }
 
 export type CaseState =
   | "received"
   | "needs_information"
   | "ready_to_match"
+  | "needs_route_review"
   | "proposed"
   | "no_feasible_option"
   | "approved"
@@ -127,6 +164,7 @@ export type OfferCase = {
   state: CaseState
   interactions: Interaction[]
   proposals: Proposal[]
+  routeReviews: RouteReview[]
   decision: Decision | null
   events: FlowEvent[]
 }

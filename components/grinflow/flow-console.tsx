@@ -13,8 +13,10 @@ import {
   receiveOffer,
   recordDecision,
   requestInformation,
+  reviewRoute,
 } from "@/lib/grinflow/flow.ts"
 import { REQUIRED_FIELDS } from "@/lib/grinflow/gaps.ts"
+import { onlyNeedsRouteReview } from "@/lib/grinflow/match.ts"
 import type { CaseState, Interaction, OfferCase, OfferFieldName } from "@/lib/grinflow/types.ts"
 
 const START = Date.parse(`${DEMO_DAY}T17:00:00.000Z`)
@@ -34,16 +36,18 @@ const STATE_LABELS: Record<CaseState, string> = {
   received: "Recibida",
   needs_information: "Faltan datos",
   ready_to_match: "Lista para proponer",
+  needs_route_review: "Falta verificar ruta",
   proposed: "Esperando decisión",
   no_feasible_option: "Sin opción viable",
   approved: "Aprobada (reservada)",
   rejected: "Rechazada",
 }
 
-const STEPS = ["Oferta recibida", "Datos faltantes", "Confirmación", "Destinos propuestos", "Decisión humana"]
+const STEPS = ["Oferta recibida", "Datos faltantes", "Confirmación", "Destinos propuestos", "Ruta verificada", "Decisión humana"]
 
 function stepIndex(c: OfferCase): number {
-  if (c.decision) return 5
+  if (c.decision) return 6
+  if (c.state === "proposed") return 5
   if (c.proposals.length > 0) return 4
   if (c.state === "ready_to_match") return 3
   if (c.interactions.length > 0) return 2
@@ -60,7 +64,7 @@ function formatValue(field: OfferFieldName, value: unknown): string {
     const w = value as { start: string; end: string }
     return `${hhmm(w.start)}–${hhmm(w.end)} (UTC)`
   }
-  if (field === "condition") return ANSWER_LABELS[String(value)] ?? String(value)
+  if (field === "condition") return CONDITION_LABELS[String(value)] ?? String(value)
   if (field === "pickupLocation") {
     const p = value as { lat: number; lng: number }
     return `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`
@@ -76,16 +80,14 @@ const STATUS_STYLE: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = { missing: "falta", reported: "reportado", confirmed: "confirmado" }
 
-const ANSWER_LABELS: Record<string, string> = {
-  si: "sí",
-  no: "no",
-  good: "bueno",
-  near_expiry: "próximo a caducar",
-  damaged: "dañado",
+const CONDITION_LABELS: Record<string, string> = {
+  edible: "apto para consumo",
+  past_prime: "pasado de su mejor momento",
+  inedible: "no apto para consumo",
   unknown: "desconocido",
 }
 
-const INTERACTION_STATE: Record<string, string> = { open: "abierta", answered: "respondida", expired: "vencida", cancelled: "cancelada" }
+const INTERACTION_STATE: Record<string, string> = { pending: "pendiente", answered: "respondida", expired: "vencida", cancelled: "cancelada" }
 
 const destinationName = (id: string) => DEMO_DESTINATIONS.find((d) => d.id === id)?.name ?? id
 const vehicleName = (id: string) => DEMO_VEHICLES.find((v) => v.id === id)?.label ?? id
@@ -100,9 +102,10 @@ export function FlowConsole() {
 
   const now = new Date(START + minute * 60_000).toISOString()
   const current = stepIndex(flow)
-  const openInteractions = flow.interactions.filter((i) => i.state === "open")
+  const openInteractions = flow.interactions.filter((i) => i.status === "pending")
   const feasible = useMemo(() => flow.proposals.filter((p) => p.feasible), [flow.proposals])
-  const blocked = useMemo(() => flow.proposals.filter((p) => !p.feasible), [flow.proposals])
+  const routePending = useMemo(() => flow.proposals.filter(onlyNeedsRouteReview), [flow.proposals])
+  const blocked = useMemo(() => flow.proposals.filter((p) => !p.feasible && !onlyNeedsRouteReview(p)), [flow.proposals])
 
   function act(fn: (c: OfferCase, at: string) => OfferCase, advance = 1) {
     const at = new Date(START + (minute + advance) * 60_000).toISOString()
@@ -125,8 +128,8 @@ export function FlowConsole() {
     setRejectReason("")
   }
 
-  function answer(i: Interaction, value: string) {
-    act((c, at) => answerInteraction(c, i.id, DEMO_ACTORS.donor, value, at))
+  function answer(i: Interaction, responseId: string, text?: string) {
+    act((c, at) => answerInteraction(c, i.id, DEMO_ACTORS.donor, { responseId, text }, at))
     setDrafts((d) => ({ ...d, [i.id]: "" }))
   }
 
@@ -221,15 +224,15 @@ export function FlowConsole() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="text-sm">{i.question}</p>
                   <span className="font-mono text-[10px] uppercase text-muted-foreground">
-                    {i.kind === "confirm" ? "confirmar" : "aclarar"} · {INTERACTION_STATE[i.state]} · vence {hhmm(i.expiresAt)}
+                    {i.kind === "confirm" ? "confirmar" : "aclarar"} · {INTERACTION_STATE[i.status]} · vence {hhmm(i.expiresAt)}
                   </span>
                 </div>
-                {i.state === "open" ? (
+                {i.status === "pending" ? (
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {i.allowedAnswers ? (
-                      i.allowedAnswers.map((a) => (
-                        <Button key={a} size="sm" variant="outline" onClick={() => answer(i, a)}>
-                          {ANSWER_LABELS[a] ?? a}
+                    {i.allowedResponses[0]?.id !== "provide_value" ? (
+                      i.allowedResponses.map((r) => (
+                        <Button key={r.id} size="sm" variant="outline" onClick={() => answer(i, r.id)}>
+                          {r.label}
                         </Button>
                       ))
                     ) : (
@@ -237,7 +240,7 @@ export function FlowConsole() {
                         className="flex gap-2"
                         onSubmit={(e) => {
                           e.preventDefault()
-                          answer(i, drafts[i.id] ?? "")
+                          answer(i, "provide_value", drafts[i.id] ?? "")
                         }}
                       >
                         <input
@@ -255,7 +258,11 @@ export function FlowConsole() {
                     <span className="self-center text-xs text-muted-foreground">respondiendo como donante</span>
                   </div>
                 ) : (
-                  i.answer && <p className="mt-1 text-xs text-muted-foreground">Respuesta: {ANSWER_LABELS[i.answer] ?? i.answer} ({i.answeredAt && hhmm(i.answeredAt)})</p>
+                  i.response && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Respuesta: {i.response.text || i.response.label} ({hhmm(i.response.at)})
+                    </p>
+                  )
                 )}
               </li>
             ))}
@@ -295,7 +302,7 @@ export function FlowConsole() {
                         <span className="text-sm font-medium">
                           {destinationName(p.destinationId)} · {vehicleName(p.vehicleId)}
                         </span>
-                        <span className="font-mono text-xs">puntaje {p.score}</span>
+                        <span className="font-mono text-xs">puntaje {Math.round((p.score ?? 0) * 100)}</span>
                       </span>
                       <ul className="mt-1 list-disc pl-4 text-xs text-muted-foreground">
                         {p.reasons.map((r) => (
@@ -307,6 +314,36 @@ export function FlowConsole() {
                 </li>
               ))}
             </ul>
+            {routePending.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Viables salvo por la ruta. El motor no acepta una ruta sin verificar; revisa la estimación y confírmala.
+                </p>
+                <ul className="mt-2 flex flex-col gap-2">
+                  {routePending.map((p) => (
+                    <li key={p.id} className="flex flex-col gap-2 rounded-md border border-dashed border-foreground/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-sm">
+                        <span className="font-medium">
+                          {destinationName(p.destinationId)} · {vehicleName(p.vehicleId)}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          Estimación en línea recta: {p.estimate.distanceKm} km, {p.estimate.durationMinutes} min, llegada{" "}
+                          {p.estimate.estimatedArrivalAt ? hhmm(p.estimate.estimatedArrivalAt) : "—"} UTC
+                        </span>
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={closed}
+                        onClick={() => act((c, at) => reviewRoute(c, DEMO_ACTORS.operator, p.id, DEMO_DESTINATIONS, DEMO_VEHICLES, at))}
+                      >
+                        Verificar ruta (operadora)
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {blocked.length > 0 && (
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm text-muted-foreground">{blocked.length} combinaciones bloqueadas y por qué</summary>
@@ -361,7 +398,7 @@ export function FlowConsole() {
             <Button
               size="sm"
               variant="outline"
-              disabled={flow.state !== "proposed" && flow.state !== "no_feasible_option"}
+              disabled={!["proposed", "needs_route_review", "no_feasible_option"].includes(flow.state)}
               onClick={() =>
                 act((c, at) => recordDecision(c, DEMO_ACTORS.operator, { outcome: "rejected", proposalId: selected, reason: rejectReason }, at))
               }

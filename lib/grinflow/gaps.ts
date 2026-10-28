@@ -1,4 +1,4 @@
-import type { Offer, OfferFieldName, Role } from "./types.ts"
+import type { AllowedResponse, Offer, OfferFieldName, Role } from "./types.ts"
 
 // Fields the matching engine needs before any destination can be proposed.
 export const REQUIRED_FIELDS: OfferFieldName[] = [
@@ -20,11 +20,21 @@ export type Gap = {
   kind: "clarify" | "confirm"
   targetRole: Role
   question: string
-  allowedAnswers: string[] | null
+  allowedResponses: AllowedResponse[]
 }
 
-export const CONDITION_ANSWERS = ["good", "near_expiry", "damaged", "unknown"]
-export const CONFIRM_ANSWERS = ["si", "no"]
+export const CONDITION_RESPONSES: AllowedResponse[] = [
+  { id: "edible", label: "Apto para consumo", effect: "provide_information" },
+  { id: "past_prime", label: "Pasado de su mejor momento", effect: "provide_information" },
+  { id: "inedible", label: "No apto para consumo", effect: "provide_information" },
+  { id: "unknown", label: "No lo sé", effect: "provide_information" },
+]
+export const CONFIRM_RESPONSES: AllowedResponse[] = [
+  { id: "confirm", label: "Sí, es correcto", effect: "confirm_information" },
+  { id: "reject", label: "No, hay que corregirlo", effect: "reject_information" },
+]
+// Free answers travel in the response text; the value is parsed by the flow.
+export const VALUE_RESPONSES: AllowedResponse[] = [{ id: "provide_value", label: "Enviar dato", effect: "provide_information" }]
 
 const LABELS: Record<OfferFieldName, string> = {
   product: "el producto",
@@ -39,7 +49,7 @@ const LABELS: Record<OfferFieldName, string> = {
 
 const CLARIFY_QUESTIONS: Record<OfferFieldName, string> = {
   product: "¿Qué producto estás ofreciendo?",
-  category: "¿A qué categoría pertenece? (panadería, fruta y verdura, lácteos, abarrotes, preparados)",
+  category: "¿A qué categoría pertenece? (panificados, verduras, frutas, lacteos, abarrotes, proteina, organico)",
   quantity: "¿Cuántas unidades hay?",
   unit: "¿En qué unidad? (cajas, kg, piezas, bolsas)",
   weightKg: "¿Cuánto pesa en total, aproximadamente, en kg?",
@@ -66,7 +76,7 @@ export function identifyGaps(offer: Offer): Gap[] {
         kind: "clarify",
         targetRole: "donor",
         question: CLARIFY_QUESTIONS[field],
-        allowedAnswers: field === "condition" ? CONDITION_ANSWERS : null,
+        allowedResponses: field === "condition" ? CONDITION_RESPONSES : VALUE_RESPONSES,
       })
     } else if (tracked.status === "reported" && CRITICAL_FIELDS.includes(field)) {
       gaps.push({
@@ -74,7 +84,7 @@ export function identifyGaps(offer: Offer): Gap[] {
         kind: "confirm",
         targetRole: "donor",
         question: `¿Confirmas ${LABELS[field]}: ${formatValue(field, tracked.value)}?`,
-        allowedAnswers: CONFIRM_ANSWERS,
+        allowedResponses: CONFIRM_RESPONSES,
       })
     }
   }

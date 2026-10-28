@@ -1,7 +1,7 @@
 import { FlowError } from "./errors.ts"
 import { identifyGaps, type Gap } from "./gaps.ts"
-import { answerInteraction as answer, cancelInteraction as cancel, createInteraction, expireInteraction } from "./interactions.ts"
-import { rankProposals } from "./match.ts"
+import { answerInteraction as answer, cancelInteraction as cancel, expireInteraction, openInteraction } from "./interactions.ts"
+import { onlyNeedsRouteReview, pairKey, rankProposals } from "./match.ts"
 import type {
   Actor,
   Condition,
@@ -11,6 +11,7 @@ import type {
   Offer,
   OfferCase,
   OfferFieldName,
+  Proposal,
   TrackedField,
   Vehicle,
 } from "./types.ts"
@@ -33,7 +34,7 @@ function assertOpen(c: OfferCase) {
 }
 
 export function receiveOffer(offer: Offer, now: string, actorId: string | null = null): OfferCase {
-  const base: OfferCase = { offer, state: "received", interactions: [], proposals: [], decision: null, events: [] }
+  const base: OfferCase = { offer, state: "received", interactions: [], proposals: [], routeReviews: [], decision: null, events: [] }
   const gaps = identifyGaps(offer)
   const events = log(base, now, "offer_received", actorId, {
     rawMessage: offer.rawMessage,
@@ -50,11 +51,11 @@ export function currentGaps(c: OfferCase): Gap[] {
 export function requestInformation(c: OfferCase, now: string, ttlMinutes = 60): OfferCase {
   assertOpen(c)
   const pending = identifyGaps(c.offer).filter(
-    (g) => !c.interactions.some((i) => i.state === "open" && i.field === g.field && i.kind === g.kind),
+    (g) => !c.interactions.some((i) => i.status === "pending" && i.field === g.field && i.kind === g.kind),
   )
   let next = c
   for (const gap of pending) {
-    const interaction = createInteraction({
+    const interaction = openInteraction({
       id: `${c.offer.id}-q${next.interactions.length + 1}`,
       offerId: c.offer.id,
       gap,
@@ -113,36 +114,56 @@ function parseValue(field: OfferFieldName, raw: string, now: string): unknown {
   }
 }
 
-export function answerInteraction(c: OfferCase, interactionId: string, actor: Actor, rawAnswer: string, now: string): OfferCase {
+// A response is recorded by the Human Interaction Layer; here it only updates the data it was about.
+// It never approves an operation: that is recordDecision, by an operator.
+export function answerInteraction(
+  c: OfferCase,
+  interactionId: string,
+  actor: Actor,
+  response: { responseId: string; text?: string },
+  now: string,
+): OfferCase {
   assertOpen(c)
   const index = c.interactions.findIndex((i) => i.id === interactionId)
   if (index === -1) throw new FlowError("interaction_not_found", `No existe la solicitud ${interactionId}.`)
   const original = c.interactions[index]
+  const field = original.field
+  const text = response.text?.trim() ?? ""
 
-  const updated = answer(original, actor, rawAnswer, now)
-  const field = updated.field
+  // Read a free value before recording anything, so an unreadable answer leaves the request open.
+  let parsed: unknown = null
+  if (original.kind === "clarify") {
+    if (response.responseId === "provide_value") {
+      if (text === "") throw new FlowError("empty_answer", "La respuesta está vacía.")
+      parsed = parseValue(field, text, now)
+    } else {
+      parsed = response.responseId
+    }
+  }
+
+  const updated = answer(original, actor, response.responseId, text, now)
   const before = c.offer[field] as TrackedField<unknown>
+  const source = `interaction:${updated.id}`
   let after: TrackedField<unknown>
-
-  if (updated.kind === "confirm") {
-    after = updated.answer === "si"
-      ? { value: before.value, status: "confirmed", source: `interaction:${updated.id}` }
-      : { value: null, status: "missing", source: `interaction:${updated.id}` }
+  if (original.kind === "confirm") {
+    after = response.responseId === "confirm"
+      ? { value: before.value, status: "confirmed", source }
+      : { value: null, status: "missing", source }
   } else {
-    after = { value: parseValue(field, updated.answer ?? "", now), status: "confirmed", source: `interaction:${updated.id}` }
+    after = { value: parsed, status: "confirmed", source }
   }
 
   const interactions = c.interactions.map((i, n) => (n === index ? updated : i))
   const offer = { ...c.offer, [field]: after } as Offer
-  let events = log(c, now, "interaction_answered", actor.id, { interactionId: updated.id, field, answer: updated.answer })
+  let events = log(c, now, "interaction_answered", actor.id, { interactionId: updated.id, field, responseId: response.responseId, text: text || null })
   events = log({ ...c, events }, now, after.status === "confirmed" ? "field_confirmed" : "field_rejected", actor.id, {
     field,
     before: { value: before.value, status: before.status },
     after: { value: after.value, status: after.status },
   })
 
-  // A changed offer invalidates any earlier proposals.
-  const next: OfferCase = { ...c, offer, interactions, events, proposals: [] }
+  // A changed offer invalidates earlier proposals and route reviews.
+  const next: OfferCase = { ...c, offer, interactions, events, proposals: [], routeReviews: [] }
   return { ...next, state: stateFromGaps(next) }
 }
 
@@ -168,22 +189,75 @@ export function cancelInteraction(c: OfferCase, interactionId: string, actor: Ac
   }
 }
 
+function stateFromProposals(proposals: Proposal[]): OfferCase["state"] {
+  if (proposals.some((p) => p.feasible)) return "proposed"
+  if (proposals.some(onlyNeedsRouteReview)) return "needs_route_review"
+  return "no_feasible_option"
+}
+
 export function proposeDestinations(c: OfferCase, destinations: Destination[], vehicles: Vehicle[], now: string): OfferCase {
   assertOpen(c)
   const gaps = identifyGaps(c.offer)
   if (gaps.length > 0) {
     throw new FlowError("missing_information", `Faltan datos antes de proponer destinos: ${gaps.map((g) => g.field).join(", ")}.`)
   }
-  const proposals = rankProposals(c.offer, destinations, vehicles)
+  const proposals = rankProposals(c.offer, destinations, vehicles, c.routeReviews, now)
   const feasible = proposals.filter((p) => p.feasible)
   return {
     ...c,
     proposals,
-    state: feasible.length > 0 ? "proposed" : "no_feasible_option",
+    state: stateFromProposals(proposals),
     events: log(c, now, "proposals_generated", null, {
       evaluated: proposals.length,
       feasible: feasible.length,
+      awaitingRouteReview: proposals.filter(onlyNeedsRouteReview).length,
+      scoreVersion: proposals[0]?.scoreVersion ?? null,
       top: feasible.slice(0, 3).map((p) => ({ id: p.id, score: p.score })),
+    }),
+  }
+}
+
+// The match engine never treats a route as viable without verification by a provider or a person.
+// In the demo an operator reviews the straight-line estimate; a route provider can replace this step later.
+export function reviewRoute(
+  c: OfferCase,
+  actor: Actor,
+  proposalId: string,
+  destinations: Destination[],
+  vehicles: Vehicle[],
+  now: string,
+): OfferCase {
+  assertOpen(c)
+  if (actor.role !== "operator") throw new FlowError("not_authorized", "Solo una persona operadora puede verificar una ruta.")
+  const proposal = c.proposals.find((p) => p.id === proposalId)
+  if (!proposal) throw new FlowError("proposal_not_found", "Elige una de las propuestas generadas.")
+  if (!onlyNeedsRouteReview(proposal)) {
+    throw new FlowError("route_review_not_applicable", "Solo se verifica la ruta de opciones cuyo único bloqueo es la ruta.")
+  }
+  const { estimate } = proposal
+  if (!estimate.estimatedArrivalAt) throw new FlowError("route_review_not_applicable", "No hay una estimación de llegada que revisar.")
+
+  const review = {
+    pairKey: pairKey(proposal.destinationId, proposal.vehicleId),
+    reviewedBy: actor.id,
+    reviewedAt: now,
+    distanceKm: estimate.distanceKm,
+    durationMinutes: estimate.durationMinutes,
+    estimatedArrivalAt: estimate.estimatedArrivalAt,
+  }
+  const routeReviews = [...c.routeReviews.filter((r) => r.pairKey !== review.pairKey), review]
+  const proposals = rankProposals(c.offer, destinations, vehicles, routeReviews, now)
+  return {
+    ...c,
+    routeReviews,
+    proposals,
+    state: stateFromProposals(proposals),
+    events: log(c, now, "route_reviewed", actor.id, {
+      proposalId,
+      distanceKm: review.distanceKm,
+      durationMinutes: review.durationMinutes,
+      estimatedArrivalAt: review.estimatedArrivalAt,
+      method: "revision_humana_sobre_estimacion_en_linea_recta",
     }),
   }
 }

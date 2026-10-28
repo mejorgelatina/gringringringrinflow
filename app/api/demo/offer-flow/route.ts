@@ -3,12 +3,13 @@ import { z } from "zod"
 
 import { runDemoFlow } from "@/lib/grinflow/run-demo.ts"
 
-// Demo only: runs offer → gaps → confirmation → proposals → human decision in memory.
+// Demo only: runs offer → gaps → confirmation → proposals → route review → human decision in memory.
+// Interactions and matching run on the v0.10 engines in lib/engines.
 // Stores nothing, sends nothing, calls no external API.
 
 const point = z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })
 const window = z.object({ start: z.string().datetime(), end: z.string().datetime() })
-const condition = z.enum(["good", "near_expiry", "damaged", "unknown"])
+const condition = z.enum(["edible", "past_prime", "inedible", "unknown"])
 const tracked = <T extends z.ZodTypeAny>(value: T) =>
   z.object({ value: value.nullable(), status: z.enum(["missing", "reported", "confirmed"]), source: z.string().max(80).nullable() })
 
@@ -35,6 +36,7 @@ const destination = z.object({
   location: point,
   receivingWindow: window,
   acceptsConditions: z.array(condition).max(4),
+  confirmed: z.boolean(),
 })
 
 const vehicle = z.object({
@@ -53,6 +55,7 @@ const body = z
     destinations: z.array(destination).min(1).max(20).optional(),
     vehicles: z.array(vehicle).min(1).max(20).optional(),
     answers: z.record(z.string().max(200)).optional(),
+    reviewRouteIndex: z.number().int().min(0).max(400).nullable().optional(),
     decision: z
       .object({
         outcome: z.enum(["approved", "rejected"]),
