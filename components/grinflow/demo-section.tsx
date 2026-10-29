@@ -1,6 +1,8 @@
 const pipeline = ["WhatsApp Input", "Structured JSON Parsing", "Context Engine", "Decision Execution"]
 
 const liveDemos = [
+  { href: "/send", title: "Give or receive food (web)", desc: "The web version of the WhatsApp channel: a donor posts food, or an organization says it can receive. Same handler, same replies." },
+  { href: "/qr", title: "GrinFlow QR", desc: "Printable codes that open WhatsApp with the first message ready, or the web chat when no number is set." },
   { href: "/demo/flow", title: "Offer to decision", desc: "Missing data, donor confirmation, explained matches, route review and a logged human decision." },
   { href: "/whatsapp", title: "WhatsApp channel", desc: "A donor messages or sends a photo; the same pipeline drafts the offer and replies with one question." },
   { href: "/intake", title: "Message and photo intake", desc: "Structured event with evidence, a photo check that never certifies safety, and an operator review step." },

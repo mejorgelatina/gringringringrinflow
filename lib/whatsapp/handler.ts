@@ -5,14 +5,14 @@ import { isAllowedSender, maskPhone, type InboundMessage } from "./webhook.ts";
 export type TraceStep = { at: string; step: string; detail: string };
 export type Trace = {
   id: string;
-  source: "webhook" | "simulator";
+  source: "webhook" | "simulator" | "web";
   from: string;
   receivedAt: string;
   steps: TraceStep[];
   reply: string | null;
   replyStatus: "sent" | "preview" | "failed" | "none";
   metaCalls: number;
-  intake: Pick<IntakeResult, "provider" | "supply" | "condition" | "photo"> & { feasible: number; blocked: number } | null;
+  intake: Pick<IntakeResult, "provider" | "supply" | "demand" | "condition" | "photo"> & { feasible: number; blocked: number } | null;
 };
 
 export type HandlerContext = {
@@ -31,16 +31,47 @@ const MISSING_ES: Record<string, string> = { quantity: "¿Cuántas piezas o caja
 const MISSING_EN: Record<string, string> = { quantity: "How many boxes or pieces, and roughly how many kilos?", deadline_hour: "Until what time can it be picked up?", location: "What is the pickup address or neighborhood?", category: "What product is it?", condition: "Is it fit for people, past its prime, or not edible?" };
 
 export function looksEnglish(text: string): boolean {
-  return /\b(we|have|the|boxes|pickup|available|today|need)\b/i.test(text) && !/\b(tenemos|cajas|hay|para|recoger)\b/i.test(text);
+  return /\b(we|have|the|boxes|pickup|available|today|need|hi|hello|receive)\b/i.test(text) && !/\b(tenemos|cajas|hay|para|recoger|hola|recibir|tengo)\b/i.test(text);
+}
+
+const DEMAND_MISSING_ES: Record<string, string> = { location: "¿En qué dirección o colonia reciben?", quantity: "¿Cuánto pueden recibir, aproximadamente (cajas o kilos)?", category: "¿Qué tipo de alimento pueden recibir?", deadline_hour: "¿Hasta qué hora pueden recibir?" };
+const DEMAND_MISSING_EN: Record<string, string> = { location: "What address or neighborhood do you receive at?", quantity: "Roughly how much can you take (boxes or kilos)?", category: "What kind of food can you take?", deadline_hour: "Until what time can you receive?" };
+
+/** Reply when there is no offer or need yet: a first "hola" (often from the QR) or an intent without details. */
+function promptReply(text: string, en: boolean): string {
+  const lower = text.toLocaleLowerCase("es-MX");
+  if (/donar|tengo comida|tenemos comida|sobr[oóa]|have food|donate|surplus/.test(lower)) return en
+    ? "Great, thanks! Tell me what food it is, how much, where it is and until what time it can be picked up. A photo helps too."
+    : "¡Qué bien, gracias! Dime qué alimento es, cuánto hay, dónde está y hasta qué hora se puede recoger. Una foto también ayuda.";
+  if (/^(hola|buenas|buen día|buen dia|hi|hello|hey)\b/.test(lower)) return en
+    ? "Hi, this is grinflow. Do you have food to give, or can your organization receive food? Tell me what, how much, where and until when, or send a photo."
+    : "Hola, soy grinflow. ¿Tienes comida para donar, o tu organización puede recibir comida? Dime qué, cuánto, dónde y hasta qué hora, o mándame una foto.";
+  return en
+    ? "Thanks. I didn't find a food offer or a need in that message. If you have food to give, tell me what, how much, where and until when. If your organization can receive food, tell me what, how much and where."
+    : "Gracias. No encontré una oferta ni una necesidad de alimento en tu mensaje. Si tienes comida para donar, dime qué es, cuánto, dónde y hasta qué hora. Si tu organización puede recibir, dime qué, cuánto y dónde.";
+}
+
+function demandReply(en: boolean, r: IntakeResult): string {
+  const d = r.demand!;
+  const ev = r.extraction.events.find(e => e.kind === "demand_declared");
+  const item = ev?.item || (d.category ? (en ? d.category : CATEGORY_ES[d.category] ?? d.category) : null);
+  const qty = d.quantity != null ? `${d.quantity} ${d.unit ?? ""}`.trim() : null;
+  const place = d.location ? d.location.replace(/\b\p{L}/gu, c => c.toUpperCase()) : null;
+  const parts = [qty, item, place ? (en ? `at ${place}` : `en ${place}`) : null, d.untilHour != null ? (en ? `until ${d.untilHour}:00` : `hasta las ${d.untilHour}:00`) : null].filter(Boolean);
+  const lines = [parts.length
+    ? (en ? `Thanks! I noted that your organization can receive: ${parts.join(", ")}.` : `¡Gracias! Registré que tu organización puede recibir: ${parts.join(", ")}.`)
+    : (en ? "Thanks! I noted that your organization can receive food." : "¡Gracias! Registré que tu organización puede recibir alimento.")];
+  const missing = ev?.unresolved?.find(m => m in DEMAND_MISSING_ES);
+  if (missing) lines.push((en ? DEMAND_MISSING_EN : DEMAND_MISSING_ES)[missing]);
+  lines.push(en ? "A person on our team verifies your organization before any food is sent to you." : "Una persona del equipo verifica tu organización antes de enviarte cualquier donación.");
+  return lines.join("\n");
 }
 
 /** One short reply: what was understood, the single most useful next question, and who decides. */
 export function composeReply(text: string, r: IntakeResult): string {
   const en = looksEnglish(text);
   const s = r.supply;
-  if (!s) return en
-    ? "Thanks. I didn't find a food offer in that message. If you have surplus food, tell me what, how much, where and until when."
-    : "Gracias. No encontré una oferta de alimento en tu mensaje. Si tienes excedente, dime qué es, cuánto, dónde y hasta qué hora.";
+  if (!s) return r.demand ? demandReply(en, r) : promptReply(text, en);
   const ev = r.extraction.events.find(e => e.kind === "supply_announced");
   const item = ev?.item || (s.category ? (en ? s.category : CATEGORY_ES[s.category] ?? s.category) : (en ? "food" : "alimento"));
   const unit = ev?.unit && s.quantity !== 1 ? (ev.unit === "box" ? "boxes" : ev.unit === "kg" || ev.unit.endsWith("s") ? ev.unit : `${ev.unit}s`) : ev?.unit ?? "";
@@ -95,8 +126,8 @@ export async function handleInbound(msg: InboundMessage, ctx: HandlerContext): P
     const r = await processIntake(text, image, ctx.deps, ctx.photoFixture);
     trace.metaCalls = r.metaCalls;
     const feasible = r.candidates.filter(c => c.feasible).length;
-    trace.intake = { provider: r.provider, supply: r.supply, condition: r.condition, photo: r.photo, feasible, blocked: r.candidates.length - feasible };
-    step("interpreted", `${r.provider} · ${r.metaCalls} Meta call(s) · ${r.supply ? "supply offer drafted" : "no offer found"}`);
+    trace.intake = { provider: r.provider, supply: r.supply, demand: r.demand, condition: r.condition, photo: r.photo, feasible, blocked: r.candidates.length - feasible };
+    step("interpreted", `${r.provider} · ${r.metaCalls} Meta call(s) · ${r.supply ? "supply offer drafted" : r.demand ? "receiving organization drafted (needs verification)" : "no offer found"}`);
     if (r.condition) step("safety", `${r.condition.reason} Routing condition: ${r.condition.effective}.`);
     if (r.supply) step("matching", `${feasible} feasible, ${r.candidates.length - feasible} blocked (deterministic gates; nothing booked).`);
     trace.reply = composeReply(text, r);
@@ -114,7 +145,7 @@ export async function handleInbound(msg: InboundMessage, ctx: HandlerContext): P
 const traces: Trace[] = [];
 /** In-memory, per server instance, newest first. Enough for a demo; not an audit log. */
 export function recordTrace(t: Trace) { traces.unshift(t); traces.length = Math.min(traces.length, 25); }
-/** Public view: webhook traces come from real people, so their reply text and offer details are withheld. */
+/** Public view: webhook and web traces come from real people, so their reply text and offer details are withheld. */
 export function recentTraces(): Trace[] {
-  return traces.map(t => t.source === "simulator" ? t : { ...t, reply: t.reply ? "(withheld: real sender)" : null, intake: t.intake ? { ...t.intake, supply: null, photo: null } : null });
+  return traces.map(t => t.source === "simulator" ? t : { ...t, reply: t.reply ? "(withheld: real sender)" : null, intake: t.intake ? { ...t.intake, supply: null, demand: null, photo: null } : null });
 }

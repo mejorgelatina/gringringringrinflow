@@ -21,6 +21,15 @@ export type Supply = {
   location: string | null;
 };
 
+/** An organization saying it can receive food. It becomes a recipient only after a person verifies it. */
+export type Demand = {
+  category: string | null;
+  quantity: number | null;
+  unit: string | null;
+  untilHour: number | null;
+  location: string | null;
+};
+
 export type PhotoResult =
   | { status: "assessed"; provider: string; model: string | null; assessment: PhotoAssessment; routing: PhotoRouting }
   | { status: "failed"; provider: string; model: string | null; error: string };
@@ -30,6 +39,7 @@ export type IntakeResult = {
   model: string | null;
   extraction: Extraction;
   supply: Supply | null;
+  demand: Demand | null;
   photo: PhotoResult | null;
   condition: ConditionEvidence | null;
   candidates: ReturnType<typeof evaluateCandidates>;
@@ -52,6 +62,8 @@ export async function processIntake(message: string, image: string | undefined, 
     deadlineHour: first.deadline_hour,
     location: first.location
   } : null;
+  const wanted = supply ? undefined : extraction.events.find(e => e.kind === "demand_declared");
+  const demand: Demand | null = wanted ? { category: wanted.category, quantity: wanted.quantity, unit: wanted.unit, untilHour: wanted.deadline_hour, location: wanted.location } : null;
 
   let photo: PhotoResult | null = null;
   let observed: ObservedCondition = "not_assessed";
@@ -82,7 +94,7 @@ export async function processIntake(message: string, image: string | undefined, 
   const condition = supply ? resolveCondition(supply.condition, observed, null) : null;
   if (supply && condition) supply.condition = condition.effective;
   const candidates = supply ? evaluateCandidates(supply) : [];
-  return { provider, model: deps.useMeta ? deps.modelId : null, extraction, supply, photo, condition, candidates, metaCalls };
+  return { provider, model: deps.useMeta ? deps.modelId : null, extraction, supply, demand, photo, condition, candidates, metaCalls };
 }
 
 /** Operator review after inspection. Never calls a model; keeps the model's observation alongside the decision. */

@@ -1,4 +1,8 @@
-const waysIn = ["write a message", "send a photo", "scan the grinflow qr"]
+const waysIn = [
+  { label: "write a message", href: "/send" },
+  { label: "send a photo", href: "/send" },
+  { label: "scan the grinflow qr", href: "/qr" },
+]
 
 const sides = [
   { title: "i have food to give", body: "post food that is available: what it is, how much, where, and until when." },
@@ -23,27 +27,32 @@ export function HeroSection() {
 
           <ul className="mt-6 flex flex-wrap gap-2" aria-label="ways to reach grinflow">
             {waysIn.map((way) => (
-              <li
-                key={way}
-                className="rounded-full border border-border bg-card px-3 py-1.5 font-mono text-xs text-muted-foreground"
-              >
-                {way}
+              <li key={way.label}>
+                <a
+                  href={way.href}
+                  className="inline-block rounded-full border border-border bg-card px-3 py-1.5 font-mono text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                >
+                  {way.label}
+                </a>
               </li>
             ))}
           </ul>
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
             <a
-              href="/whatsapp"
+              href="/send"
               className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-brand-700"
             >
-              try it on whatsapp
+              give or receive food
             </a>
             <a
-              href="#demo"
+              href="/qr"
               className="inline-flex items-center justify-center rounded-md border border-border bg-card px-5 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
             >
-              watch the 90-second demo
+              get the grinflow qr
+            </a>
+            <a href="#demo" className="px-2 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground">
+              watch the demo →
             </a>
           </div>
         </div>
