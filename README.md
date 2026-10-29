@@ -60,11 +60,17 @@ The landing and the v0.10 screens use separate root layouts (`app/(site)`, `app/
 
 `/api/intake` only calls the Meta Model API when `MODEL_API_KEY` is set **and** `META_CALLS_ENABLED=true`. Without both, it uses the local fallback, so preview deployments never spend credits by accident. See `.env.example`.
 
+**Turning on real mode (production only):** in Vercel → Project → Settings → Environment Variables, add `MODEL_API_KEY` (Production scope only) and `META_CALLS_ENABLED=true`, then redeploy. Leave Preview without the flag so branch deploys stay free. Before that, `MODEL_API_KEY=… pnpm smoke:meta` lists models with zero inference calls, and `--basic` makes exactly one. Each `/intake` submission costs one call, plus one more when a photo is attached.
+
+### Photo assessment
+
+`/intake` accepts an optional photo (downscaled in the browser to ≤1024px JPEG). With real mode on, a Muse Spark vision call describes visible items, approximate counts, legible label text and visible issues, and grades the photo. `lib/meta/photo-policy.ts` then applies fixed rules: a clean-looking photo never makes food `edible`; minor issues suggest `past_prime`, severe ones (mold, rot, pests, leaks) suggest `inedible`; and a photo that contradicts an "edible" message makes condition unverified, which blocks people-tier routes until a person confirms. Without real mode the photo is accepted but not analyzed.
+
 ### Checks
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm test        # node --test: 16 flow tests + the 47 v0.10.2 tests (Node 22.6+)
+pnpm test        # node --test: 16 flow tests, 6 photo-policy tests, 47 v0.10.2 tests (Node 22.6+)
 pnpm typecheck
 pnpm build
 curl -s -X POST localhost:3000/api/demo/offer-flow -d '{"decision":{"outcome":"approved"}}'
