@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { firestore } from "./admin";
-import type { Trace } from "../whatsapp/handler";
-import type { InboundMessage } from "../whatsapp/webhook";
+import { firestore } from "./admin.ts";
+import type { Trace } from "../whatsapp/handler.ts";
+import type { InboundMessage } from "../whatsapp/webhook.ts";
 
 function idFor(value: string) {
   return createHash("sha256").update(value).digest("hex").slice(0, 40);

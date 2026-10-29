@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   try {
     const next = await resumeRun(run, parsed.data.action, deps, planner);
     const token = seal(next);
-    remember(next.code, token);
+    await remember(next.code, token);
     return NextResponse.json({ ok: true, run: next, token, tracking: trackingView(next), stateSigned: stateSigned() });
   } catch (error) {
     if (error instanceof ResumeError) return NextResponse.json({ ok: false, error: "invalid_action", message: error.message }, { status: 409 });

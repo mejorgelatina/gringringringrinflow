@@ -44,9 +44,10 @@ The repository includes an optional Firestore adapter. When `FIREBASE_PROJECT_ID
 
 - `whatsapp_webhook_events`: prevents a Meta redelivery from triggering a second model call, even after a server restart.
 - `whatsapp_messages`: one document per inbound message and its generated reply. Images are never stored.
-- `whatsapp_conversations`: lightweight metadata keyed by a hashed sender identifier.
+- `whatsapp_conversations`: lightweight metadata keyed by a hash of the sender number. The number itself is stored too, so an operator can follow up; treat this collection as personal data.
+- `agent_tracking`: tracking number → sealed agent run, so `/track` finds a collection after a redeploy or on another instance.
 
-Without those variables, the app keeps using the existing in-memory demo behavior. Create a Firebase project, enable Cloud Firestore, create a server service account, and copy its project ID, client email, and private key into Vercel as server-only variables. Do not use `NEXT_PUBLIC_` for any of them and do not commit the service-account JSON.
+Without those variables, the app keeps using the existing in-memory demo behavior. `/whatsapp` → **Live setup** shows whether Firestore is configured. The web chat at `/send` is not persisted. Create a Firebase project, enable Cloud Firestore, create a server service account, and copy its project ID, client email, and private key into Vercel as server-only variables. Do not use `NEXT_PUBLIC_` for any of them and do not commit the service-account JSON.
 
 ## Safety rules the channel inherits
 

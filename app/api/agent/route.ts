@@ -23,6 +23,6 @@ export async function POST(request: Request) {
   const { deps, planner } = agentWiring(photoFixture);
   const run = await startRun(message, image, deps, planner);
   const token = seal(run);
-  remember(run.code, token);
+  await remember(run.code, token);
   return NextResponse.json({ ok: true, run, token, tracking: trackingView(run), stateSigned: stateSigned() });
 }
