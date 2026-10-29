@@ -104,7 +104,7 @@ Todavía no es una plataforma multiusuario ni un sistema logístico en producci�
 
 ## Lo que debe hacer el fundador ahora
 
-1. Descarga el paquete v0.9 y comparte `ONBOARDING_GUIDE_ES.md` con la persona que se incorpore.
+1. Descarga el paquete v0.9 y comparte `ONBOARDING_GUIDE.md` con la persona que se incorpore.
 2. En una máquina con Node.js 20+, ejecuta `npm install`, `npm test`, `npm run typecheck`, `npm run build`.
 3. Prueba `/platform`; si aparece un error, comparte el log sin secretos.
 4. Decide si el objetivo inmediato sigue siendo el hackathon o si vamos a iniciar un piloto: son planes distintos y el piloto requiere datos, permisos y controles que no debemos improvisar.

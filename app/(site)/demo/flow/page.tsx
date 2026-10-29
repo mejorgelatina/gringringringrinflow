@@ -3,8 +3,8 @@ import type { Metadata } from "next"
 import { FlowConsole } from "@/components/grinflow/flow-console"
 
 export const metadata: Metadata = {
-  title: "GrinFlow — Flujo de una oferta",
-  description: "Demo: llega una oferta, se piden los datos que faltan, se proponen destinos y una persona decide.",
+  title: "GrinFlow — Offer to decision",
+  description: "Demo: an offer arrives, missing data is requested, destinations are proposed, and a person decides.",
 }
 
 export default function FlowDemoPage() {
@@ -14,10 +14,10 @@ export default function FlowDemoPage() {
         <a href="/" className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground">
           ← GrinFlow
         </a>
-        <h1 className="mt-4 text-2xl tracking-tight md:text-3xl">Flujo de una oferta</h1>
+        <h1 className="mt-4 text-2xl tracking-tight md:text-3xl">From an offer to a human decision</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Llega una oferta, se identifican los datos faltantes, se pide confirmación al donante, se proponen destinos y una
-          persona operadora decide. Todo queda registrado. Datos sintéticos: nada se guarda ni se envía.
+          An offer arrives, missing data is identified, the donor is asked to confirm, destinations are proposed, an operator
+          verifies the route and decides. Every step is logged. Synthetic data: nothing is stored or sent.
         </p>
         <FlowConsole />
       </div>

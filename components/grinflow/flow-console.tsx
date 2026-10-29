@@ -22,28 +22,28 @@ import type { CaseState, Interaction, OfferCase, OfferFieldName } from "@/lib/gr
 const START = Date.parse(`${DEMO_DAY}T17:00:00.000Z`)
 
 const FIELD_LABELS: Record<OfferFieldName, string> = {
-  product: "Producto",
-  category: "Categoría",
-  quantity: "Cantidad",
-  unit: "Unidad",
-  weightKg: "Peso (kg)",
-  condition: "Estado",
-  pickupLocation: "Ubicación",
-  pickupWindow: "Horario de recogida",
+  product: "Product",
+  category: "Category",
+  quantity: "Quantity",
+  unit: "Unit",
+  weightKg: "Weight (kg)",
+  condition: "Condition",
+  pickupLocation: "Location",
+  pickupWindow: "Pickup window",
 }
 
 const STATE_LABELS: Record<CaseState, string> = {
-  received: "Recibida",
-  needs_information: "Faltan datos",
-  ready_to_match: "Lista para proponer",
-  needs_route_review: "Falta verificar ruta",
-  proposed: "Esperando decisión",
-  no_feasible_option: "Sin opción viable",
-  approved: "Aprobada (reservada)",
-  rejected: "Rechazada",
+  received: "Received",
+  needs_information: "Missing data",
+  ready_to_match: "Ready to match",
+  needs_route_review: "Route needs review",
+  proposed: "Awaiting decision",
+  no_feasible_option: "No feasible option",
+  approved: "Approved (on hold)",
+  rejected: "Rejected",
 }
 
-const STEPS = ["Oferta recibida", "Datos faltantes", "Confirmación", "Destinos propuestos", "Ruta verificada", "Decisión humana"]
+const STEPS = ["Offer received", "Missing data", "Confirmation", "Proposed destinations", "Route verified", "Human decision"]
 
 function stepIndex(c: OfferCase): number {
   if (c.decision) return 6
@@ -78,16 +78,16 @@ const STATUS_STYLE: Record<string, string> = {
   confirmed: "border-emerald-600/50 text-emerald-700 dark:text-emerald-400",
 }
 
-const STATUS_LABEL: Record<string, string> = { missing: "falta", reported: "reportado", confirmed: "confirmado" }
+const STATUS_LABEL: Record<string, string> = { missing: "missing", reported: "reported", confirmed: "confirmed" }
 
 const CONDITION_LABELS: Record<string, string> = {
-  edible: "apto para consumo",
-  past_prime: "pasado de su mejor momento",
-  inedible: "no apto para consumo",
-  unknown: "desconocido",
+  edible: "edible",
+  past_prime: "past its prime",
+  inedible: "not edible",
+  unknown: "unknown",
 }
 
-const INTERACTION_STATE: Record<string, string> = { pending: "pendiente", answered: "respondida", expired: "vencida", cancelled: "cancelada" }
+const INTERACTION_STATE: Record<string, string> = { pending: "pending", answered: "answered", expired: "expired", cancelled: "cancelled" }
 
 const destinationName = (id: string) => DEMO_DESTINATIONS.find((d) => d.id === id)?.name ?? id
 const vehicleName = (id: string) => DEMO_VEHICLES.find((v) => v.id === id)?.label ?? id
@@ -161,10 +161,10 @@ export function FlowConsole() {
           ))}
         </ol>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-muted-foreground">Reloj demo {hhmm(now)} UTC</span>
+          <span className="font-mono text-xs text-muted-foreground">Demo clock {hhmm(now)} UTC</span>
           <Badge variant="outline">{STATE_LABELS[flow.state]}</Badge>
           <Button variant="ghost" size="sm" onClick={reset}>
-            Reiniciar
+            Reset
           </Button>
         </div>
       </div>
@@ -176,9 +176,9 @@ export function FlowConsole() {
       )}
 
       <section className="rounded-md border border-border bg-card p-4 sm:p-5">
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">1 · Mensaje recibido</h2>
+        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">1 · Incoming message</h2>
         <p className="mt-3 rounded-md bg-secondary px-3 py-2 text-sm">“{flow.offer.rawMessage}”</p>
-        <p className="mt-1 text-xs text-muted-foreground">De: {DEMO_ACTORS.donor.name}</p>
+        <p className="mt-1 text-xs text-muted-foreground">From: {DEMO_ACTORS.donor.name} · via WhatsApp (simulated). English: “Hi, I have 40 boxes of today’s bread. It can be picked up today from 6 to 8 pm.”</p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
             <tbody>
@@ -203,19 +203,19 @@ export function FlowConsole() {
 
       <section className="rounded-md border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">2 · Datos faltantes y confirmación</h2>
+          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">2 · Missing data and confirmation</h2>
           <div className="flex gap-2">
             <Button size="sm" disabled={closed || flow.state !== "needs_information"} onClick={() => act((c, at) => requestInformation(c, at, 30))}>
-              Pedir datos al donante
+              Ask the donor
             </Button>
             <Button size="sm" variant="outline" disabled={openInteractions.length === 0} onClick={letExpire}>
-              Dejar vencer (silencio)
+              Let it expire (silence)
             </Button>
           </div>
         </div>
         {flow.interactions.length === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">
-            {flow.state === "needs_information" ? "Hay datos que faltan o que el donante debe confirmar." : "No faltan datos."}
+            {flow.state === "needs_information" ? "Some data is missing or must be confirmed by the donor." : "Nothing missing."}
           </p>
         ) : (
           <ul className="mt-4 flex flex-col gap-3">
@@ -224,7 +224,7 @@ export function FlowConsole() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="text-sm">{i.question}</p>
                   <span className="font-mono text-[10px] uppercase text-muted-foreground">
-                    {i.kind === "confirm" ? "confirmar" : "aclarar"} · {INTERACTION_STATE[i.status]} · vence {hhmm(i.expiresAt)}
+                    {i.kind === "confirm" ? "confirm" : "clarify"} · {INTERACTION_STATE[i.status]} · expires {hhmm(i.expiresAt)}
                   </span>
                 </div>
                 {i.status === "pending" ? (
@@ -251,16 +251,16 @@ export function FlowConsole() {
                           placeholder={i.field === "pickupWindow" ? "18:00-20:00" : i.field === "weightKg" ? "60" : ""}
                         />
                         <Button size="sm" type="submit" variant="outline">
-                          Responder
+                          Reply
                         </Button>
                       </form>
                     )}
-                    <span className="self-center text-xs text-muted-foreground">respondiendo como donante</span>
+                    <span className="self-center text-xs text-muted-foreground">answering as the donor</span>
                   </div>
                 ) : (
                   i.response && (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Respuesta: {i.response.text || i.response.label} ({hhmm(i.response.at)})
+                      Answer: {i.response.text || i.response.label} ({hhmm(i.response.at)})
                     </p>
                   )
                 )}
@@ -272,17 +272,17 @@ export function FlowConsole() {
 
       <section className="rounded-md border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">3 · Destinos propuestos</h2>
+          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">3 · Proposed destinations</h2>
           <Button
             size="sm"
             disabled={closed || flow.state !== "ready_to_match"}
             onClick={() => act((c, at) => proposeDestinations(c, DEMO_DESTINATIONS, DEMO_VEHICLES, at))}
           >
-            Proponer destinos
+            Propose destinations
           </Button>
         </div>
         {flow.proposals.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">Se proponen solo cuando todos los datos críticos están confirmados.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Proposals appear only once every critical field is confirmed.</p>
         ) : (
           <>
             <ul className="mt-4 flex flex-col gap-3">
@@ -317,7 +317,7 @@ export function FlowConsole() {
             {routePending.length > 0 && (
               <div className="mt-4">
                 <p className="text-sm text-muted-foreground">
-                  Viables salvo por la ruta. El motor no acepta una ruta sin verificar; revisa la estimación y confírmala.
+                  Feasible except for the route. The engine never accepts an unverified route: review the estimate and confirm it.
                 </p>
                 <ul className="mt-2 flex flex-col gap-2">
                   {routePending.map((p) => (
@@ -327,7 +327,7 @@ export function FlowConsole() {
                           {destinationName(p.destinationId)} · {vehicleName(p.vehicleId)}
                         </span>
                         <span className="block text-xs text-muted-foreground">
-                          Estimación en línea recta: {p.estimate.distanceKm} km, {p.estimate.durationMinutes} min, llegada{" "}
+                          Straight-line estimate: {p.estimate.distanceKm} km, {p.estimate.durationMinutes} min, arrival{" "}
                           {p.estimate.estimatedArrivalAt ? hhmm(p.estimate.estimatedArrivalAt) : "—"} UTC
                         </span>
                       </span>
@@ -337,7 +337,7 @@ export function FlowConsole() {
                         disabled={closed}
                         onClick={() => act((c, at) => reviewRoute(c, DEMO_ACTORS.operator, p.id, DEMO_DESTINATIONS, DEMO_VEHICLES, at))}
                       >
-                        Verificar ruta (operadora)
+                        Verify route (operator)
                       </Button>
                     </li>
                   ))}
@@ -346,7 +346,7 @@ export function FlowConsole() {
             )}
             {blocked.length > 0 && (
               <details className="mt-4">
-                <summary className="cursor-pointer text-sm text-muted-foreground">{blocked.length} combinaciones bloqueadas y por qué</summary>
+                <summary className="cursor-pointer text-sm text-muted-foreground">{blocked.length} blocked combinations and why</summary>
                 <ul className="mt-2 flex flex-col gap-2">
                   {blocked.map((p) => (
                     <li key={p.id} className="rounded-md border border-dashed border-border p-2 text-xs">
@@ -368,16 +368,16 @@ export function FlowConsole() {
       </section>
 
       <section className="rounded-md border border-border bg-card p-4 sm:p-5">
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">4 · Decisión humana</h2>
+        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">4 · Human decision</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Decide: {DEMO_ACTORS.operator.name}. Aprobar reserva el producto; la recogida y la entrega se registran aparte.
+          Decides: {DEMO_ACTORS.operator.name}. Approval places a hold on the supply; pickup and delivery are recorded separately.
         </p>
         {flow.decision ? (
           <p className="mt-3 text-sm">
-            <strong>{flow.decision.outcome === "approved" ? "Aprobada" : "Rechazada"}</strong> por {flow.decision.decidedBy} a las{" "}
+            <strong>{flow.decision.outcome === "approved" ? "Approved" : "Rejected"}</strong> by {flow.decision.decidedBy} at{" "}
             {hhmm(flow.decision.decidedAt)}
             {flow.decision.proposalId && ` · ${flow.decision.proposalId}`}
-            {flow.decision.reason && ` · motivo: ${flow.decision.reason}`}
+            {flow.decision.reason && ` · reason: ${flow.decision.reason}`}
           </p>
         ) : (
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -386,13 +386,13 @@ export function FlowConsole() {
               disabled={flow.state !== "proposed" || !selected}
               onClick={() => act((c, at) => recordDecision(c, DEMO_ACTORS.operator, { outcome: "approved", proposalId: selected }, at))}
             >
-              Aprobar propuesta elegida
+              Approve selected proposal
             </Button>
             <input
-              aria-label="Motivo del rechazo"
+              aria-label="Reason for rejection"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Motivo del rechazo"
+              placeholder="Reason for rejection"
               className="h-8 rounded-md border border-input bg-background px-2 text-sm sm:w-56"
             />
             <Button
@@ -403,21 +403,21 @@ export function FlowConsole() {
                 act((c, at) => recordDecision(c, DEMO_ACTORS.operator, { outcome: "rejected", proposalId: selected, reason: rejectReason }, at))
               }
             >
-              Rechazar
+              Reject
             </Button>
           </div>
         )}
       </section>
 
       <section className="rounded-md border border-border bg-card p-4 sm:p-5">
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Registro de eventos</h2>
+        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Event log</h2>
         <ol className="mt-3 flex flex-col gap-1.5">
           {flow.events.map((e) => (
             <li key={e.seq} className="flex gap-3 font-mono text-[11px]">
               <span className="text-muted-foreground">#{e.seq}</span>
               <span className="text-muted-foreground">{hhmm(e.at)}</span>
               <span>{e.type}</span>
-              <span className="truncate text-muted-foreground">{e.actorId ?? "sistema"}</span>
+              <span className="truncate text-muted-foreground">{e.actorId ?? "system"}</span>
             </li>
           ))}
         </ol>

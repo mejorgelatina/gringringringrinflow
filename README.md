@@ -34,12 +34,12 @@ To learn more, take a look at the following resources:
 
 ## GrinFlow v0.10 + coordination loop
 
-This repo now carries the v0.10 package (engines, console, demo APIs, docs, migrations) next to the landing page.
+This repo now carries the v0.10.2 package (English edition) (engines, console, demo APIs, docs, migrations) next to the landing page.
 
 | Route | What it is |
 | --- | --- |
 | `/` | Landing page (unchanged) |
-| `/demo/flujo` | Offer → missing data → confirmation → proposals → route review → human decision |
+| `/demo/flow` | Offer → missing data → confirmation → proposals → route review → human decision (`/demo/flujo` redirects here) |
 | `/intake` | v0.10 message intake and extraction (local fallback; see Meta below) |
 | `/platform` | v0.10 logistics console (browser-local synthetic data) |
 | `POST /api/demo/offer-flow` | The full loop in memory. Body optional: `answers`, `reviewRouteIndex`, `decision`, `offer`, `destinations`, `vehicles` |
@@ -64,10 +64,14 @@ The landing and the v0.10 screens use separate root layouts (`app/(site)`, `app/
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm test        # node --test: flow tests + the 44 v0.10 tests (Node 22.6+)
+pnpm test        # node --test: 16 flow tests + the 47 v0.10.2 tests (Node 22.6+)
 pnpm typecheck
 pnpm build
 curl -s -X POST localhost:3000/api/demo/offer-flow -d '{"decision":{"outcome":"approved"}}'
 ```
 
-All places, distances and availability in the demos are synthetic. Distances are straight-line estimates, not verified routes. v0.10 documentation is in [`docs/v0.10/`](docs/v0.10/), proposed migrations in `db/migrations/` (not applied anywhere).
+All places, distances and availability in the demos are synthetic. Distances are straight-line estimates, not verified routes. v0.10.2 documentation is in [`docs/v0.10/`](docs/v0.10/) (Spanish originals in `docs/v0.10/archive/es/`), proposed migrations in `db/migrations/` (not applied anywhere).
+
+### Golden-set baseline (local fallback, no Meta calls)
+
+`pnpm build && pnpm start`, then `GRINFLOW_BASE_URL=http://localhost:3000 pnpm evaluate`. On 2026-10-29 the rule-based local fallback scored **104/156 field checks (66.7%)** and **5/30 exact cases**, with **0 unsafe edible false positives**. Most misses are `needsReview` (17) and `kind` (13). This is the bar a Meta-backed run should beat; tuning the fallback to the golden set would only overfit it.

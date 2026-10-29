@@ -6,9 +6,9 @@ export const DEMO_DAY = "2026-11-03"
 const at = (hhmm: string) => `${DEMO_DAY}T${hhmm}:00.000Z`
 
 export const DEMO_ACTORS: Record<string, Actor> = {
-  donor: { id: "donor-panaderia-roma", role: "donor", name: "Panadería La Espiga (demo)" },
-  operator: { id: "op-ana", role: "operator", name: "Ana, coordinación (demo)" },
-  driver: { id: "driver-luis", role: "driver", name: "Luis, transportista (demo)" },
+  donor: { id: "donor-panaderia-roma", role: "donor", name: "La Espiga Bakery (demo)" },
+  operator: { id: "op-ana", role: "operator", name: "Ana, coordinator (demo)" },
+  driver: { id: "driver-luis", role: "driver", name: "Luis, driver (demo)" },
 }
 
 // What the extractor would produce from the message: some fields reported, some missing.
@@ -31,7 +31,7 @@ export function demoOffer(): Offer {
 export const DEMO_DESTINATIONS: Destination[] = [
   {
     id: "dest-comedor-doctores",
-    name: "Comedor comunitario Doctores",
+    name: "Doctores community kitchen",
     use: "human_consumption",
     acceptedCategories: ["panificados", "verduras", "frutas", "abarrotes"],
     capacityKg: 150,
@@ -42,7 +42,7 @@ export const DEMO_DESTINATIONS: Destination[] = [
   },
   {
     id: "dest-albergue-norte",
-    name: "Albergue Norte",
+    name: "Norte shelter",
     use: "human_consumption",
     acceptedCategories: ["panificados", "lacteos"],
     capacityKg: 50,
@@ -53,7 +53,7 @@ export const DEMO_DESTINATIONS: Destination[] = [
   },
   {
     id: "dest-compostaje-iztapalapa",
-    name: "Planta de compostaje Iztapalapa",
+    name: "Iztapalapa compost plant",
     use: "valorization",
     acceptedCategories: ["panificados", "verduras", "frutas", "organico"],
     capacityKg: 2000,
@@ -67,7 +67,7 @@ export const DEMO_DESTINATIONS: Destination[] = [
 export const DEMO_VEHICLES: Vehicle[] = [
   {
     id: "veh-van-luis",
-    label: "Van de Luis (ruta de retorno)",
+    label: "Luis's van (return trip)",
     capacityKg: 400,
     location: { lat: 19.4270, lng: -99.1677 },
     availableWindow: { start: at("18:30"), end: at("21:00") },
@@ -76,7 +76,7 @@ export const DEMO_VEHICLES: Vehicle[] = [
   },
   {
     id: "veh-moto-carga",
-    label: "Moto de carga",
+    label: "Cargo motorbike",
     capacityKg: 40,
     location: { lat: 19.4150, lng: -99.1600 },
     availableWindow: { start: at("16:00"), end: at("22:00") },
@@ -85,7 +85,7 @@ export const DEMO_VEHICLES: Vehicle[] = [
   },
   {
     id: "veh-camioneta-banco",
-    label: "Camioneta del banco de alimentos",
+    label: "Food bank truck",
     capacityKg: 1500,
     location: { lat: 19.3900, lng: -99.1200 },
     availableWindow: { start: at("17:00"), end: at("20:00") },

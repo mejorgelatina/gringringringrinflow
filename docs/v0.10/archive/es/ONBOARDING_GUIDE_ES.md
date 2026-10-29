@@ -47,7 +47,7 @@ Estas categorías describen el diseño previsto. La integración real con estos 
 Flujo actual:
 
 1. La persona escribe un mensaje en español.
-2. El servidor usa Meta Model API si `MODEL_API_KEY` está configurada; de lo contrario usa una heurística local de demostración, claramente distinta de una llamada a Meta.
+2. El servidor solo usa Meta Model API si `MODEL_API_KEY` está configurada **y** `META_CALLS_ENABLED=true`. La bandera debe permanecer en `false` en previews y despliegues donde no quieras gastar créditos. En cualquier otro caso usa una heurística local de demostración, claramente distinta de una llamada a Meta.
 3. La extracción se valida contra un esquema tipado.
 4. Se comprueba que la cita de evidencia aparezca literalmente en el mensaje original.
 5. Un motor determinista evalúa destinos y capacidades sintéticos.
@@ -101,7 +101,7 @@ npm test
 npm run dev
 ```
 
-Abrir `http://localhost:3000`. Sin `MODEL_API_KEY`, la app debe indicar que usa el fallback local; eso sirve para desarrollo visual, no demuestra que Meta funciona.
+Abrir `http://localhost:3000`. Con `META_CALLS_ENABLED=false` (valor predeterminado), la app debe usar el fallback local incluso si hay una clave configurada; eso sirve para desarrollo visual, no demuestra que Meta funciona. Para habilitar llamadas, confirma primero el saldo y cambia la bandera a `true` de forma intencional.
 
 Para TypeScript y build:
 
@@ -180,8 +180,8 @@ Las transiciones no permitidas se rechazan. Para entrar a `ready_to_match` se re
 - `src/lib/logistics.mjs`: datos sintéticos, evaluación de viabilidad, máquina de estados y correcciones auditadas.
 - `tests/logistics.test.mjs`: pruebas de reglas de estado y bloqueos.
 - `db/migrations/0001_initial.sql`: propuesta de esquema PostgreSQL, no aplicada.
-- `docs/PRODUCTION_ARCHITECTURE_ES.md`: arquitectura objetivo y fases de implementación.
-- `LOGISTICS_PLATFORM_SCOPE_ES.md`: alcance, límites y próximos pasos.
+- `docs/PRODUCTION_ARCHITECTURE.md`: arquitectura objetivo y fases de implementación.
+- `LOGISTICS_PLATFORM_SCOPE.md`: alcance, límites y próximos pasos.
 
 ## 17. Cómo probar el flujo operativo
 
@@ -198,12 +198,12 @@ No uses datos personales ni información de donantes reales en esta versión.
 
 ## 15. Filosofía de producto y motores v0.9
 
-La tesis de GrinFlow no es reemplazar WhatsApp, llamadas, Excel o las relaciones operativas existentes. Es construir una capa de inteligencia sobre esos canales. Lee `PRODUCT_PHILOSOPHY_ES.md` antes de diseñar nuevas funciones.
+La tesis de GrinFlow no es reemplazar WhatsApp, llamadas, Excel o las relaciones operativas existentes. Es construir una capa de inteligencia sobre esos canales. Lee `PRODUCT_PHILOSOPHY.md` antes de diseñar nuevas funciones.
 
 - `src/lib/match-engine.mjs`: evalúa candidatos oferta–destino–transporte con restricciones duras; el score nunca anula un bloqueo. Requiere ruta verificada para considerar elegible un candidato.
 - `src/lib/backhaul.mjs`: detecta posibles segundas recogidas después de una entrega confirmada, solo cuando existe consentimiento, capacidad, permiso de transporte, ruta verificada y beneficio neto positivo.
-- `MATCH_ENGINE_SPEC_ES.md` y `BACKHAUL_ENGINE_SPEC_ES.md`: contratos, restricciones y límites.
-- `docs/API_CONTRACT_ES.md`: propuesta de frontera API/roles/estados.
+- `MATCH_ENGINE_SPEC.md` y `BACKHAUL_ENGINE_SPEC.md`: contratos, restricciones y límites.
+- `docs/API_CONTRACT.md`: propuesta de frontera API/roles/estados.
 - `db/migrations/0002_row_level_security.sql`: base RLS propuesta para Supabase; no aplicar sin revisión y pruebas multi-tenant.
 
 Ejecuta `npm test` para la suite completa. La demo no usa mapas reales, no contacta conductores y no hace llamadas a Meta al correr pruebas. No introducir datos personales reales hasta completar autenticación, persistencia, permisos y retención.
