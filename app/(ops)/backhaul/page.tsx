@@ -30,7 +30,7 @@ export default function Backhaul() {
   };
 
   return <main className="shell">
-    <header className="topbar"><a className="wordmark" href="/intake"><span className="mark">g</span> grinflow</a><div className="topmeta"><span className="dot"/> return trips · synthetic data <a href="/intake" style={{marginLeft:12,color:"#087c62",fontWeight:700,textDecoration:"none"}}>intake ↗</a><a href="/whatsapp" style={{marginLeft:12,color:"#087c62",fontWeight:700,textDecoration:"none"}}>whatsapp ↗</a></div></header>
+    <header className="topbar"><a className="wordmark" href="/intake"><img src="/grinflow-logo.svg" alt="grinflow"/></a><div className="topmeta"><span className="dot"/> return trips · synthetic data <a href="/intake" style={{marginLeft:12,color:"#087c62",fontWeight:700,textDecoration:"none"}}>intake ↗</a><a href="/whatsapp" style={{marginLeft:12,color:"#087c62",fontWeight:700,textDecoration:"none"}}>whatsapp ↗</a></div></header>
     <section className="hero"><div className="eyebrow">backhaul · capacity that already moves</div><h1>The van is already<br/><em>driving back.</em></h1><p className="lede">After a confirmed drop-off, GrinFlow looks for a second pickup on the way back. It only proposes trips that save kilometers, fit the load and pass every safety gate. A person decides; nothing is booked.</p></section>
     <div className="warning"><span className="warning-icon">!</span><div><strong>opportunity preview, not a booking</strong><p>Distances are synthetic straight-line estimates that an operator reviews by hand. No driver is contacted, no route provider is called and no Meta model is used on this screen.</p></div></div>
 
@@ -56,6 +56,6 @@ export default function Backhaul() {
     </section>
 
     <section className="section-block audit-section"><div className="section-head"><div><div className="eyebrow">03 — audit trail</div><h2>Every decision leaves a trace.</h2></div><span className="step">session only</span></div><div className="audit-list">{audit.map((entry, i) => <div className="audit-row" key={`${entry}-${i}`}><span className="audit-dot"/><span>{entry}</span></div>)}</div></section>
-    <footer><div className="wordmark"><span className="mark">g</span> grinflow</div><p>We don’t replace existing infrastructure. We make it work together.</p><span>Engine: lib/engines/backhaul.mjs · grinflow-backhaul-v1</span></footer>
+    <footer><div className="wordmark"><img src="/grinflow-logo.svg" alt="grinflow"/></div><p>We don’t replace existing infrastructure. We make it work together.</p><span>Engine: lib/engines/backhaul.mjs · grinflow-backhaul-v1</span></footer>
   </main>;
 }

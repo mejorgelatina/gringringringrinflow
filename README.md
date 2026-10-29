@@ -12,11 +12,12 @@ Everything below was built during the event. The git history shows it: every com
 | v0.10.x engines (matching, logistics, backhaul, interactions), Meta adapter with credit guard, operations console | `lib/engines/`, `lib/meta/`, `/platform` | #2, #3 |
 | Message + photo intake with Muse Spark, photo safety policy, human review step | `/intake`, `lib/intake/`, `lib/meta/photo*.ts` | #4 |
 | WhatsApp Cloud API webhook, simulator and traces | `/whatsapp`, `/api/whatsapp/*`, `lib/whatsapp/` | #5 |
+| Design system (tokens, lowercase rule, logo), new landing hero, web chat on the same handler, grinflow QR, declared demand in intake | `app/tokens.css`, `docs/design-system.md`, `/send`, `/qr`, `/api/message` | #7 |
 | Return-trip (backhaul) preview | `/backhaul`, `lib/backhaul/` | #6 |
 
 The v0.10.x engines and documents were written by the team in a separate workspace during the event and imported in PRs #2 and #3. Some planning notes in `docs/v0.10/` are dated Oct 24–25: they are pre-event preparation (ideas and plans, no code).
 
-**Not built during the hackathon:** the marketing landing page at `/` (generated with v0 on 2026-07-27/28, commits `63bd063`…`86ad7b6`). It is context only and is not part of the demo.
+**Not built during the hackathon:** the original marketing landing page at `/` (generated with v0 on 2026-07-27/28, commits `63bd063`…`86ad7b6`). Its hero, header and styling were rewritten during the event in PR #7; the remaining sections are the July base with copy edits.
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
 
@@ -56,7 +57,9 @@ This repo now carries the v0.10.2 package (English edition) (engines, console, d
 
 | Route | What it is |
 | --- | --- |
-| `/` | Landing page (unchanged) |
+| `/` | Landing page (July base, new hero and design system from PR #7) |
+| `/send` | Web chat for donors without WhatsApp; same handler as the webhook via `POST /api/message` |
+| `/qr` | Printable grinflow QR that opens the WhatsApp chat |
 | `/demo/flow` | Offer → missing data → confirmation → proposals → route review → human decision (`/demo/flujo` redirects here) |
 | `/intake` | Message and photo intake, photo safety check, human review, matching and decision |
 | `/whatsapp` | WhatsApp simulator running the live webhook handler, with step traces |
