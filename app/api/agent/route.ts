@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { agentWiring } from "@/lib/agent/deps";
 import { startRun } from "@/lib/agent/loop";
+import { remember } from "@/lib/agent/registry";
+import { trackingView } from "@/lib/agent/tracking";
 import { seal, stateSigned } from "@/lib/agent/state";
 import { isAcceptableImageDataUrl } from "@/lib/meta/photo-policy";
 
@@ -20,5 +22,7 @@ export async function POST(request: Request) {
   const { message, image, photoFixture } = parsed.data;
   const { deps, planner } = agentWiring(photoFixture);
   const run = await startRun(message, image, deps, planner);
-  return NextResponse.json({ ok: true, run, token: seal(run), stateSigned: stateSigned() });
+  const token = seal(run);
+  remember(run.code, token);
+  return NextResponse.json({ ok: true, run, token, tracking: trackingView(run), stateSigned: stateSigned() });
 }

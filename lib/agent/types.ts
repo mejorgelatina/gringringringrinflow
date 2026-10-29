@@ -17,14 +17,17 @@ export type AgentStatus =
   | "approved" // operator signed off; still a simulated action
   | "paused"; // turn limit or a failed model call
 
-export type Candidate = { recipientId: string; recipient: string; tier: string; capacityId: string; capacity: string; feasible: boolean; blockers: { code: string; label: string }[] };
+export type Candidate = { recipientId: string; recipient: string; tier: string; capacityId: string; capacity: string; routeKm: number | null; feasible: boolean; blockers: { code: string; label: string }[] };
 
-export type Proposal = { recipientId: string; capacityId: string; recipient: string; capacity: string; tier: string; rationale: string; quotes: string[]; judge: { by: string; supported: boolean; note: string } };
+export type Proposal = { recipientId: string; capacityId: string; recipient: string; capacity: string; tier: string; routeKm: number | null; rationale: string; quotes: string[]; judge: { by: string; supported: boolean; note: string } };
 
 export type Turn = { n: number; at: string; tool: string; args: Record<string, unknown>; outcome: "ok" | "refused" | "stopped"; summary: string; check?: string };
 
 export type AgentRun = {
   id: string;
+  /** Short public reference for this collection, like a parcel tracking number. */
+  code: string;
+  createdAt: string;
   status: AgentStatus;
   planner: string;
   /** Everything the donor wrote, in order. The only source a quote may come from. */

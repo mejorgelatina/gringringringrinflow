@@ -145,7 +145,7 @@ async function assessPhoto({ run, deps, image }: ToolContext): Promise<ToolResul
 
 function findMatches({ run }: ToolContext): ToolResult {
   if (!run.supply) return refuse("no_offer", "there is no offer yet: call extract_event first, or ask the donor what they have");
-  run.candidates = (evaluateCandidates(run.supply) as Candidate[]).map(c => ({ recipientId: c.recipientId, recipient: c.recipient, tier: c.tier, capacityId: c.capacityId, capacity: c.capacity, feasible: c.feasible, blockers: c.blockers }));
+  run.candidates = (evaluateCandidates(run.supply) as Candidate[]).map(c => ({ recipientId: c.recipientId, recipient: c.recipient, tier: c.tier, capacityId: c.capacityId, capacity: c.capacity, routeKm: c.routeKm ?? null, feasible: c.feasible, blockers: c.blockers }));
   run.candidatesVersion = run.supplyVersion;
   const feasible = run.candidates.filter(c => c.feasible);
   return {
@@ -198,7 +198,7 @@ async function proposeMatch({ run, deps }: ToolContext, args: Record<string, unk
     return refuse(failed.check, `proposal refused: ${failed.problems.join("; ")}`, { problems: failed.problems, refusalsLeft: MAX_REFUSALS - run.refusals });
   }
   const c = rules.candidate!;
-  run.proposal = { recipientId, capacityId, recipient: c.recipient, capacity: c.capacity, tier: c.tier, rationale, quotes, judge: judge! };
+  run.proposal = { recipientId, capacityId, recipient: c.recipient, capacity: c.capacity, tier: c.tier, routeKm: c.routeKm, rationale, quotes, judge: judge! };
   run.status = "awaiting_approval";
   return { ok: true, summary: `proposal for ${c.recipient} passed every check · waiting for operator sign-off`, data: { status: "awaiting_approval" } };
 }

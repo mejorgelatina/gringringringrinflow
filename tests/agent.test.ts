@@ -5,6 +5,7 @@ import { localJudge } from "../lib/agent/judge.ts"
 import { resumeRun, startRun } from "../lib/agent/loop.ts"
 import { createMetaPlanner, createScriptedPlanner, type Planner, type PlannerStep } from "../lib/agent/planner.ts"
 import { seal, unseal } from "../lib/agent/state.ts"
+import { trackingView } from "../lib/agent/tracking.ts"
 import type { AgentDeps } from "../lib/agent/tools.ts"
 import type { AgentRun } from "../lib/agent/types.ts"
 import { extractLocally } from "../lib/meta/meta.ts"
@@ -144,4 +145,39 @@ test("AG-10: a rejected pair is not proposed again", async () => {
   const first = run.proposal!.recipientId
   const next = await resumeRun(run, { type: "decision", decision: "rejected", reviewer: "ana", notes: "they are closed today" }, offline(), createScriptedPlanner())
   assert.notEqual(next.proposal?.recipientId ?? "none", first)
+})
+
+test("TR-01: every collection gets a gf- tracking number and stages that follow the run", async () => {
+  const run = await startRun(BREAD, undefined, offline(), createScriptedPlanner())
+  assert.match(run.code, /^GF-[0-9A-F]{8}$/)
+  const t = trackingView(run, "2026-11-03T18:00:00Z") // 12:00 in Mexico City
+  assert.equal(t.headline, "verified · waiting for sign-off")
+  assert.deepEqual(t.stages.map(s => s.state), ["done", "done", "done", "done", "done", "done", "waiting", "pending", "pending"])
+  assert.equal(t.eta?.pickup, "12:20")
+  assert.equal(t.eta?.late, false)
+  assert.equal(t.etaFinal, false)
+})
+
+test("TR-02: after sign-off the eta is fixed from the approval time and flags a missed deadline", async () => {
+  const run = await startRun(BREAD, undefined, offline(), createScriptedPlanner())
+  const done = await resumeRun(run, { type: "decision", decision: "approved", reviewer: "ana", notes: "" }, offline(), createScriptedPlanner())
+  done.review!.at = "2026-11-04T00:30:00Z" // 18:30 in Mexico City, after the 18:00 deadline
+  const t = trackingView(done, "2026-11-04T01:00:00Z")
+  assert.match(t.headline, /^pickup scheduled · eta 18:50$/)
+  assert.equal(t.eta?.late, true)
+  assert.equal(t.etaFinal, true)
+  assert.equal(t.stages.find(s => s.key === "pickup")?.state, "current")
+})
+
+test("TR-03: a question to the donor and a handoff show as waiting, not as progress", async () => {
+  const asked = await startRun("Nos sobraron como unas 15 cajas de jitomate en Centro", undefined, offline(), createScriptedPlanner())
+  const t1 = trackingView(asked)
+  assert.equal(t1.headline, "waiting for the donor")
+  assert.equal(t1.stages.find(s => s.key === "details")?.state, "waiting")
+  assert.equal(t1.eta, null)
+  const msg = "Tenemos 12 cajas de manzanas frescas en la colonia Roma, recoger antes de las 4 pm"
+  const flagged = await startRun(msg, JPEG, offline({ photoFixture: "mold" }), createScriptedPlanner())
+  const t2 = trackingView(flagged)
+  assert.equal(t2.headline, "with an operator")
+  assert.equal(t2.stages.find(s => s.key === "condition")?.state, "waiting")
 })

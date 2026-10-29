@@ -1,6 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { Tracking } from "@/lib/agent/tracking";
 import type { AgentRun, AgentStatus } from "@/lib/agent/types";
+import { loadSaved, readRun, save, TrackingCard } from "./tracking-card";
 import s from "./agent.module.css";
 
 const EXAMPLES = [
@@ -31,6 +33,7 @@ export default function AgentConsole() {
   const [image, setImage] = useState<string | null>(null);
   const [fixture, setFixture] = useState<"" | "clean" | "mold">("");
   const [run, setRun] = useState<AgentRun | null>(null);
+  const [tracking, setTracking] = useState<Tracking | null>(null);
   const [token, setToken] = useState("");
   const [signed, setSigned] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -47,11 +50,18 @@ export default function AgentConsole() {
       const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.message || "the agent could not continue");
-      setRun(d.run); setToken(d.token); setSigned(d.stateSigned); setReply(""); setNotes("");
+      setRun(d.run); setTracking(d.tracking); setToken(d.token); setSigned(d.stateSigned); setReply(""); setNotes("");
+      save({ code: d.run.code, token: d.token, at: new Date().toISOString(), headline: d.tracking.headline });
     } catch (e) { setError(e instanceof Error ? e.message : "unexpected error"); }
     finally { setBusy(false); }
   }
-  const start = () => { setRun(null); call("/api/agent", { message, ...(image ? { image, ...(fixture ? { photoFixture: fixture } : {}) } : {}) }); };
+  // /agent?code=gf-… reopens a collection started in this browser, so an operator can act on it.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("code")?.toUpperCase();
+    const saved = code ? loadSaved().find(x => x.code === code) : undefined;
+    if (saved) fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: saved.token }) }).then(r => r.json()).then(d => { if (d.ok) { setToken(saved.token); setTracking(d.tracking); setRun(readRun(saved.token)); } }).catch(() => {});
+  }, []);
+  const start = () => { setRun(null); setTracking(null); call("/api/agent", { message, ...(image ? { image, ...(fixture ? { photoFixture: fixture } : {}) } : {}) }); };
   const resume = (action: Record<string, unknown>) => call("/api/agent/resume", { token, action });
   async function pickPhoto(file: File | undefined) {
     setError("");
@@ -75,13 +85,16 @@ export default function AgentConsole() {
     </section>
 
     {run && <section className="section-block">
-      <div className="section-head"><div><div className="eyebrow">02 — timeline</div><h2>what the agent did, turn by turn.</h2></div><span className={`status ${STATUS[run.status].tone}`}>{STATUS[run.status].label}</span></div>
-      <p className={s.meta}><span>planner: {run.planner}</span><span>{run.metaCalls} meta call(s)</span><span>turns {run.turns.length}/{run.turnLimit}</span>{!signed && <span>run state signed with the demo key</span>}</p>
+      <div className="section-head"><div><div className="eyebrow">02 — collection</div><h2>where this rescue is.</h2></div><a className="step" href={`/track?code=${run.code}`}>public tracking page ↗</a></div>
+      {tracking && <TrackingCard t={tracking}/>}
+      <details className={s.log}><summary>agent log · {run.turns.length} turns · {run.metaCalls} meta call(s)</summary>
+      <p className={s.meta}><span className={`status ${STATUS[run.status].tone}`}>{STATUS[run.status].label}</span><span>planner: {run.planner}</span><span>{run.metaCalls} meta call(s)</span><span>turns {run.turns.length}/{run.turnLimit}</span>{!signed && <span>run state signed with the demo key</span>}</p>
       <ol className={s.timeline}>{run.turns.map(t => <li key={t.n} className={`${s.turn} ${t.tool === "operator" ? s.operator : t.outcome === "refused" ? s.refused : t.outcome === "stopped" ? s.stopped : ""}`}>
         <div className={s.turnHead}><span className={s.turnNo}>turn {t.n}</span><span className={s.tool}>{t.tool}</span>{t.check && <span className={s.check}>refused · {t.check.replaceAll("_", " ")}</span>}</div>
         <p className={`${s.summary} keep-case`}>{t.summary}</p>
         {Object.keys(t.args).length > 0 && <details className={s.details}><summary>arguments</summary><pre className="keep-case">{JSON.stringify(t.args, null, 2)}</pre></details>}
       </li>)}</ol>
+      </details>
       {run.note && <div className="empty">{run.note}</div>}
 
       {run.status === "needs_input" && run.question && <div className={s.panel}>

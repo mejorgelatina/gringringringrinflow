@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { agentWiring } from "@/lib/agent/deps";
 import { ResumeError, resumeRun } from "@/lib/agent/loop";
+import { remember } from "@/lib/agent/registry";
+import { trackingView } from "@/lib/agent/tracking";
 import { seal, stateSigned, unseal } from "@/lib/agent/state";
 
 const Action = z.discriminatedUnion("type", [
@@ -22,7 +24,9 @@ export async function POST(request: Request) {
   const { deps, planner } = agentWiring();
   try {
     const next = await resumeRun(run, parsed.data.action, deps, planner);
-    return NextResponse.json({ ok: true, run: next, token: seal(next), stateSigned: stateSigned() });
+    const token = seal(next);
+    remember(next.code, token);
+    return NextResponse.json({ ok: true, run: next, token, tracking: trackingView(next), stateSigned: stateSigned() });
   } catch (error) {
     if (error instanceof ResumeError) return NextResponse.json({ ok: false, error: "invalid_action", message: error.message }, { status: 409 });
     throw error;
