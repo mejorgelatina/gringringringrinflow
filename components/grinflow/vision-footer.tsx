@@ -15,14 +15,14 @@ export function VisionFooter() {
               <a
                 key={link}
                 href="mailto:hello@grinflow.com"
-                className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary-foreground/70 transition-colors hover:text-primary-foreground"
+                className="font-mono text-[11px] tracking-[0.02em] text-primary-foreground/70 transition-colors hover:text-primary-foreground"
               >
                 {link}
               </a>
             ))}
           </nav>
 
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary-foreground/50">
+          <p className="font-mono text-[11px] tracking-[0.02em] text-primary-foreground/50">
             © 2026 GrinFlow. All rights reserved.
           </p>
         </div>

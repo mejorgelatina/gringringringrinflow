@@ -9,7 +9,7 @@ export function LearnedSection() {
     <section className="border-b border-border">
       <div className="mx-auto grid max-w-5xl gap-10 px-6 py-20 md:grid-cols-[180px_1fr] md:py-24">
         <div>
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">What We Learned</h2>
+          <h2 className="eyebrow">What We Learned</h2>
           <p className="mt-2 text-sm text-muted-foreground">Hypothesis vs. field</p>
         </div>
 
@@ -23,7 +23,7 @@ export function LearnedSection() {
                       step.state === "kept" ? "border-foreground bg-secondary" : "border-foreground/30"
                     }`}
                   >
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    <p className="font-mono text-[10px] tracking-[0.02em] text-muted-foreground">
                       {step.label}
                     </p>
                     <p className="mt-2 flex items-baseline gap-2 text-sm leading-snug text-card-foreground">
@@ -41,7 +41,7 @@ export function LearnedSection() {
                 </div>
               ))}
             </div>
-            <figcaption className="mt-4 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <figcaption className="mt-4 font-mono text-[10px] tracking-[0.02em] text-muted-foreground">
               Fig. 1 &mdash; Two rejected hypotheses, one observed truth
             </figcaption>
           </figure>
