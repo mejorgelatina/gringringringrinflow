@@ -14,6 +14,8 @@ Everything below was built during the event. The git history shows it: every com
 | WhatsApp Cloud API webhook, simulator and traces | `/whatsapp`, `/api/whatsapp/*`, `lib/whatsapp/` | #5 |
 | Design system (tokens, lowercase rule, logo), new landing hero, web chat on the same handler, grinflow QR, declared demand in intake | `app/tokens.css`, `docs/design-system.md`, `/send`, `/qr`, `/api/message` | #7 |
 | Return-trip (backhaul) preview | `/backhaul`, `lib/backhaul/` | #6 |
+| Muse Spark intake agent (tool loop, checks it can't skip, operator sign-off) and parcel-style tracking | `/agent`, `/track`, `lib/agent/` | #8 |
+| Optional Firestore persistence: WhatsApp messages and durable webhook dedupe (first draft written with Manus, an outside AI agent, then reviewed here), tracking numbers | `lib/firebase/`, `lib/agent/registry.ts` | #9 |
 
 The v0.10.x engines and documents were written by the team in a separate workspace during the event and imported in PRs #2 and #3. Some planning notes in `docs/v0.10/` are dated Oct 24–25: they are pre-event preparation (ideas and plans, no code).
 

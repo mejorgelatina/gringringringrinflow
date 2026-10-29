@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 type Step = { at: string; step: string; detail: string };
 type Trace = { id: string; source: "webhook" | "simulator"; from: string; receivedAt: string; steps: Step[]; reply: string | null; replyStatus: "sent" | "preview" | "failed" | "none"; metaCalls: number; intake: { provider: string; feasible: number; blocked: number; condition: { effective: string; peopleRouteBlocked: boolean } | null } | null };
-type Config = { verifyTokenSet: boolean; appSecretSet: boolean; accessTokenSet: boolean; phoneNumberIdSet: boolean; repliesEnabled: boolean; allowlistSet: boolean; metaCallsEnabled: boolean };
+type Config = { verifyTokenSet: boolean; appSecretSet: boolean; accessTokenSet: boolean; phoneNumberIdSet: boolean; repliesEnabled: boolean; allowlistSet: boolean; metaCallsEnabled: boolean; firebaseSet?: boolean };
 type Bubble = { who: "donor" | "grinflow"; text: string; image?: string; trace?: Trace };
 
 const SAMPLES = [
@@ -86,7 +86,7 @@ export default function WhatsAppDemo() {
         </div>
         <div className="section-block"><div className="eyebrow">LIVE SETUP ON THIS DEPLOYMENT</div>
           {config ? <ul className="wa-config">{([
-            ["Verify token", config.verifyTokenSet], ["App secret (signature check)", config.appSecretSet], ["Access token", config.accessTokenSet], ["Phone number ID", config.phoneNumberIdSet], ["Replies enabled", config.repliesEnabled], ["Sender allowlist", config.allowlistSet], ["Meta model calls", config.metaCallsEnabled]
+            ["Verify token", config.verifyTokenSet], ["App secret (signature check)", config.appSecretSet], ["Access token", config.accessTokenSet], ["Phone number ID", config.phoneNumberIdSet], ["Replies enabled", config.repliesEnabled], ["Sender allowlist", config.allowlistSet], ["Meta model calls", config.metaCallsEnabled], ["Firestore (durable storage)", Boolean(config.firebaseSet)]
           ] as const).map(([k, v]) => <li key={k}><span className={`wa-dot ${v ? "on" : ""}`}/>{k}<b>{v ? "on" : "off"}</b></li>)}</ul> : <p className="subhead">Loading…</p>}
         </div>
         <div className="section-block"><div className="eyebrow">RECENT TRACES · THIS SERVER INSTANCE</div>

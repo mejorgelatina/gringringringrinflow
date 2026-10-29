@@ -1,3 +1,4 @@
+import { firebaseEnabled } from "@/lib/firebase/admin";
 import { intakeDeps } from "@/lib/intake/deps";
 import { downloadMediaAsDataUrl, graphConfig, sendText } from "./graph";
 import type { HandlerContext } from "./handler";
@@ -23,6 +24,7 @@ export function whatsappStatus() {
     phoneNumberIdSet: Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID),
     repliesEnabled: process.env.WHATSAPP_REPLIES_ENABLED === "true",
     allowlistSet: Boolean(process.env.WHATSAPP_ALLOWED_SENDERS),
-    metaCallsEnabled: intakeDeps().useMeta
+    metaCallsEnabled: intakeDeps().useMeta,
+    firebaseSet: firebaseEnabled()
   };
 }

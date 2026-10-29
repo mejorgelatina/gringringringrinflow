@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { liveContext } from "@/lib/whatsapp/context";
 import { alreadyHandled, handleInbound, recordTrace } from "@/lib/whatsapp/handler";
 import { parseInbound, verifySignature, verifySubscription } from "@/lib/whatsapp/webhook";
+import { claimWebhookMessage, persistWhatsAppTurn } from "@/lib/firebase/whatsapp-store";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -24,7 +25,12 @@ export async function POST(request: Request) {
   let handled = 0;
   for (const msg of parseInbound(payload)) {
     if (alreadyHandled(msg.id)) continue;
-    recordTrace(await handleInbound(msg, ctx));
+    const claim = await claimWebhookMessage(msg.id);
+    if (claim === "duplicate") continue;
+    const trace = await handleInbound(msg, ctx);
+    recordTrace(trace);
+    try { await persistWhatsAppTurn(msg, trace); }
+    catch (error) { console.error("Firebase WhatsApp persistence failed", error); }
     handled++;
   }
   // Always 200 once verified: a non-200 makes Meta redeliver, which would repeat model calls.
