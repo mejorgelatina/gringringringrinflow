@@ -100,7 +100,7 @@ export default function PlatformPage() {
 
   return <main className="platform-shell">
     <aside className="platform-sidebar">
-      <a className="platform-brand" href="/"><span className="brand-g">g</span><span>grinflow<small>RESOURCE COORDINATION</small></span></a>
+      <a className="platform-brand" href="/"><span><img src="/grinflow-logo.svg" alt="grinflow"/><small>resource coordination</small></span></a>
       <div className="workspace-label">WORKSPACE <span>DEMO</span></div>
       <nav className="platform-nav" aria-label="Main navigation">
         <NavButton active={tab==="overview"} onClick={()=>setTab("overview")} icon="◫" label="Overview" />

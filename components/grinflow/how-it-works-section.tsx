@@ -23,12 +23,12 @@ export function HowItWorksSection() {
   return (
     <section id="how-it-works" className="border-b border-border">
       <div className="mx-auto max-w-5xl px-6 py-20 md:py-24">
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">How It Works</h2>
+        <h2 className="eyebrow">How It Works</h2>
 
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {steps.map((step) => (
             <article key={step.index} className="flex flex-col rounded-md border border-border bg-card p-6">
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="font-mono text-[11px] tracking-[0.02em] text-muted-foreground">
                 {step.index} / {step.title}
               </p>
               <p className="mt-5 text-sm leading-relaxed text-card-foreground">{step.input}</p>

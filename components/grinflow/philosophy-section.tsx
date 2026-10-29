@@ -8,7 +8,7 @@ export function PhilosophySection() {
   return (
     <section className="border-b border-border bg-secondary">
       <div className="mx-auto max-w-5xl px-6 py-20 md:py-28">
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Product Philosophy</h2>
+        <h2 className="eyebrow">Product Philosophy</h2>
 
         <blockquote className="mt-8 max-w-3xl font-display text-3xl leading-[1.15] tracking-tight text-balance md:text-5xl">
           &ldquo;We don&apos;t replace workflows. We make existing workflows intelligent.&rdquo;
