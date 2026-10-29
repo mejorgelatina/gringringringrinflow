@@ -9,10 +9,10 @@ import type { Block, Destination, Offer, Proposal, RouteEstimate, RouteReview, V
 export const pairKey = (destinationId: string, vehicleId: string) => `${destinationId}:${vehicleId}`
 
 const CONDITION_LABEL: Record<string, string> = {
-  edible: "apto para consumo",
-  past_prime: "pasado de su mejor momento",
-  inedible: "no apto para consumo",
-  unknown: "desconocido",
+  edible: "edible",
+  past_prime: "past its prime",
+  inedible: "not edible",
+  unknown: "of unknown condition",
 }
 
 // Straight-line timing: vehicle → donor inside both windows, then donor → destination before it closes.
@@ -34,7 +34,7 @@ export function estimateRoute(offer: Offer, destination: Destination, vehicle: V
   const slot = window ? overlap(window, vehicle.availableWindow) : null
   const pickupAt = slot ? Math.max(Date.parse(slot.start), Date.parse(vehicle.availableWindow.start) + travelMinutes(toPickup) * 60_000) : NaN
   if (!slot || !(pickupAt <= Date.parse(slot.end))) {
-    blocks.push({ code: "no_pickup_slot", message: `${vehicle.label} no llega a tiempo al horario de recogida.` })
+    blocks.push({ code: "no_pickup_slot", message: `${vehicle.label} cannot reach the pickup within its window.` })
     return { estimate, blocks, slackMinutes: 0 }
   }
   const deliverAt = Math.max(pickupAt + travelMinutes(toDestination) * 60_000, Date.parse(destination.receivingWindow.start))
@@ -42,7 +42,7 @@ export function estimateRoute(offer: Offer, destination: Destination, vehicle: V
   estimate.estimatedArrivalAt = new Date(deliverAt).toISOString()
   const receivingEnd = Date.parse(destination.receivingWindow.end)
   if (deliverAt >= receivingEnd) {
-    blocks.push({ code: "no_delivery_slot", message: `No se llega a ${destination.name} antes de que cierre la recepción.` })
+    blocks.push({ code: "no_delivery_slot", message: `Cannot reach ${destination.name} before receiving closes.` })
     return { estimate, blocks, slackMinutes: 0 }
   }
   return { estimate, blocks, slackMinutes: Math.round((receivingEnd - deliverAt) / 60_000) }
@@ -95,11 +95,11 @@ export function evaluate(offer: Offer, destination: Destination, vehicle: Vehicl
   const feasible = blocks.length === 0
   const reasons: string[] = []
   if (feasible) {
-    reasons.push(destination.use === "human_consumption" ? "Destino de consumo humano: primer nivel de la cascada." : "Destino de valorización: el producto no se pierde.")
-    reasons.push(`Producto ${CONDITION_LABEL[offer.condition.value ?? "unknown"]}, confirmado por el donante.`)
-    reasons.push(`${estimate.distanceKm} km y ${estimate.durationMinutes} min; ruta revisada por una persona.`)
-    reasons.push(`Usa ${Math.round(((offer.weightKg.value ?? 0) / vehicle.capacityKg) * 100)}% de la capacidad de ${vehicle.label}.`)
-    reasons.push(`Margen de ${slackMinutes} min antes del cierre de recepción.`)
+    reasons.push(destination.use === "human_consumption" ? "Human-consumption destination: first tier of the cascade." : "Valorization destination: the product is not wasted.")
+    reasons.push(`Product ${CONDITION_LABEL[offer.condition.value ?? "unknown"]}, confirmed by the donor.`)
+    reasons.push(`${estimate.distanceKm} km and ${estimate.durationMinutes} min; route reviewed by a person.`)
+    reasons.push(`Uses ${Math.round(((offer.weightKg.value ?? 0) / vehicle.capacityKg) * 100)}% of ${vehicle.label}'s capacity.`)
+    reasons.push(`${slackMinutes} min of slack before receiving closes.`)
   }
 
   return {

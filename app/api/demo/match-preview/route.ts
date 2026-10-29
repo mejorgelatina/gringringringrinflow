@@ -36,6 +36,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, requestId, mode: "stateless_demo", persistence: "none", dispatch: "disabled", resultCount: results.length, results });
   } catch (error) {
     const invalid = error instanceof z.ZodError || error instanceof SyntaxError;
-    return NextResponse.json({ ok: false, requestId, error: invalid ? "invalid_request" : "preview_failed", message: invalid ? "Revisa el JSON, las unidades, las cantidades y los límites de candidatos." : "No se pudo evaluar el preview." }, { status: invalid ? 400 : 500 });
+    return NextResponse.json({ ok: false, requestId, error: invalid ? "invalid_request" : "preview_failed", message: invalid ? "Check the JSON, units, quantities, and candidate limits." : "Could not evaluate the preview." }, { status: invalid ? 400 : 500 });
   }
 }

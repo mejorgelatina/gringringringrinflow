@@ -180,8 +180,8 @@ Las transiciones no permitidas se rechazan. Para entrar a `ready_to_match` se re
 - `src/lib/logistics.mjs`: datos sintéticos, evaluación de viabilidad, máquina de estados y correcciones auditadas.
 - `tests/logistics.test.mjs`: pruebas de reglas de estado y bloqueos.
 - `db/migrations/0001_initial.sql`: propuesta de esquema PostgreSQL, no aplicada.
-- `docs/PRODUCTION_ARCHITECTURE_ES.md`: arquitectura objetivo y fases de implementación.
-- `LOGISTICS_PLATFORM_SCOPE_ES.md`: alcance, límites y próximos pasos.
+- `docs/PRODUCTION_ARCHITECTURE.md`: arquitectura objetivo y fases de implementación.
+- `LOGISTICS_PLATFORM_SCOPE.md`: alcance, límites y próximos pasos.
 
 ## 17. Cómo probar el flujo operativo
 
@@ -198,12 +198,12 @@ No uses datos personales ni información de donantes reales en esta versión.
 
 ## 15. Filosofía de producto y motores v0.9
 
-La tesis de GrinFlow no es reemplazar WhatsApp, llamadas, Excel o las relaciones operativas existentes. Es construir una capa de inteligencia sobre esos canales. Lee `PRODUCT_PHILOSOPHY_ES.md` antes de diseñar nuevas funciones.
+La tesis de GrinFlow no es reemplazar WhatsApp, llamadas, Excel o las relaciones operativas existentes. Es construir una capa de inteligencia sobre esos canales. Lee `PRODUCT_PHILOSOPHY.md` antes de diseñar nuevas funciones.
 
 - `src/lib/match-engine.mjs`: evalúa candidatos oferta–destino–transporte con restricciones duras; el score nunca anula un bloqueo. Requiere ruta verificada para considerar elegible un candidato.
 - `src/lib/backhaul.mjs`: detecta posibles segundas recogidas después de una entrega confirmada, solo cuando existe consentimiento, capacidad, permiso de transporte, ruta verificada y beneficio neto positivo.
-- `MATCH_ENGINE_SPEC_ES.md` y `BACKHAUL_ENGINE_SPEC_ES.md`: contratos, restricciones y límites.
-- `docs/API_CONTRACT_ES.md`: propuesta de frontera API/roles/estados.
+- `MATCH_ENGINE_SPEC.md` y `BACKHAUL_ENGINE_SPEC.md`: contratos, restricciones y límites.
+- `docs/API_CONTRACT.md`: propuesta de frontera API/roles/estados.
 - `db/migrations/0002_row_level_security.sql`: base RLS propuesta para Supabase; no aplicar sin revisión y pruebas multi-tenant.
 
 Ejecuta `npm test` para la suite completa. La demo no usa mapas reales, no contacta conductores y no hace llamadas a Meta al correr pruebas. No introducir datos personales reales hasta completar autenticación, persistencia, permisos y retención.

@@ -1,5 +1,11 @@
 const pipeline = ["WhatsApp Input", "Structured JSON Parsing", "Context Engine", "Decision Execution"]
 
+const liveDemos = [
+  { href: "/demo/flow", title: "Offer to decision", desc: "Missing data, donor confirmation, explained matches, route review and a logged human decision." },
+  { href: "/intake", title: "Message intake", desc: "Turn an informal Spanish message into a structured event with evidence and open questions." },
+  { href: "/platform", title: "Operations console", desc: "Offers, recipients, transport, lifecycle and audit log for the network." },
+]
+
 export function DemoSection() {
   return (
     <section id="demo" className="border-b border-border">
@@ -31,6 +37,22 @@ export function DemoSection() {
               Replace this container with the demo iframe
             </p>
           </div>
+        </div>
+
+        <div className="mt-8 grid gap-3 md:grid-cols-3">
+          {liveDemos.map((demo) => (
+            <a
+              key={demo.href}
+              href={demo.href}
+              className="group rounded-md border border-border bg-card p-4 transition-colors hover:border-foreground/40"
+            >
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Live demo · synthetic data</p>
+              <p className="mt-2 text-base">
+                {demo.title} <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">&rarr;</span>
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{demo.desc}</p>
+            </a>
+          ))}
         </div>
 
         <ol className="mt-8 flex flex-col gap-3 md:flex-row md:items-center">

@@ -48,7 +48,7 @@ test("silence expires and is explicitly not approval", () => {
   const result = expireInteraction(request, { now: Date.parse("2030-10-28T13:00:00Z") });
   assert.equal(result.ok, true);
   assert.equal(result.request.status, "expired");
-  assert.match(result.note, /no equivale a consentimiento/);
+  assert.match(result.note, /does not mean consent/);
 });
 test("expired request cannot be answered retroactively", () => {
   const request = draft().request;

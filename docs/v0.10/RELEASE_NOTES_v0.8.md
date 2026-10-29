@@ -1,23 +1,19 @@
-# GrinFlow v0.8 — avance técnico
+# GrinFlow v0.8 — Technical Update
 
-## Añadido
-- Motor de matching aislado en `src/lib/match-engine.mjs`.
-- Ranking determinista de candidatos con hard gates y score explicable versión `grinflow-match-v1`.
-- Bloqueo explícito si falta ruta verificada; no inventa distancia ni ETA.
-- Bloqueos por cantidad estimada/no confirmada, unidad incompatible, condición insegura, destino/transporte no confirmado, capacidad, deadline y ventanas operativas.
-- Migración propuesta `0002_row_level_security.sql` con políticas base por tenant y rol, más registros de operación/auditoría de solo lectura desde cliente.
-- Prompt de extracción reforzado para tratar el mensaje de origen como dato JSON no confiable, límite de 10,000 caracteres y soporte real para `META_BASE_URL`.
-- Ocho pruebas nuevas del motor de matching.
+## Added
+- Deterministic candidate ranking with hard gates and explainable `grinflow-match-v1` scoring.
+- Explicit blocking when a verified route is missing; no distance or ETA is invented.
+- Blockers for estimated/unconfirmed quantity, incompatible units, unsafe condition, unconfirmed recipient/transport, capacity, deadline, and operating windows.
+- Proposed `0002_row_level_security.sql` migration with baseline tenant/role policies and read-only operation/audit access from the client.
+- Stronger extraction prompt that treats source messages as untrusted JSON data, limits input to 10,000 characters, and supports `META_BASE_URL`.
 
-## Verificación de esta entrega
-- `npm test`: 26 pruebas pasan.
-- `node --check` del motor nuevo pasa.
-- No se hizo ninguna llamada al modelo ni se consumieron créditos de Meta.
+## Verification status at that release
+- Core tests passed in the original environment.
+- No model calls were made and no Meta credits were consumed.
 
-## No verificado
-- Instalación limpia de dependencias, `next build`, typecheck completo y pruebas de navegador.
-- Ejecución de migraciones contra Supabase/PostgreSQL; las políticas RLS requieren revisión de seguridad y pruebas con dos organizaciones y todos los roles.
-- Matching conectado a la interfaz, persistencia real, autenticación o rutas de mapas reales.
+## Not verified at that release
+- Clean dependency install, `next build`, full typecheck, and browser testing.
+- Migrations against Supabase/PostgreSQL. RLS policies require security review and tests with two organizations and every role.
+- Matching connected to the UI, durable persistence, authentication, or live map routes.
 
-## Advertencia de seguridad
-La migración RLS es una base revisable, no una certificación de seguridad. Antes de usar datos reales, se deben probar las referencias cruzadas entre organizaciones, políticas de cada rol, invitaciones, revocación de consentimiento, operaciones concurrentes y acceso a través de APIs server-side.
+The RLS migration is a reviewable starting point, not a security certification. Before real data is used, test cross-organization references, every role's policies, invitations, consent revocation, concurrent operations, and access through server-side APIs.

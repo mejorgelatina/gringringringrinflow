@@ -1,14 +1,30 @@
 #!/usr/bin/env node
 /**
- * Safe Meta Model API diagnostic.
- * Run with MODEL_API_KEY set in the environment. Never prints the key.
- * First tests model listing, then basic inference, then schema-constrained JSON output.
- * This script makes two inference calls and may consume credits; run only by explicit choice.
+ * Explicit-cost Meta Model API diagnostic.
+ * Default: list models only (no inference). Choose exactly one inference mode intentionally.
+ * Never prints the API key. Inference may consume credits.
+ *
+ * Usage:
+ *   npm run smoke:meta                 # list models only; zero inference calls
+ *   npm run smoke:meta -- --basic      # exactly one basic inference call
+ *   npm run smoke:meta -- --structured # exactly one JSON Schema inference call
+ *   npm run smoke:meta -- --all        # model list + two inference calls (explicitly opt in)
  */
 const key = process.env.MODEL_API_KEY;
 const baseURL = (process.env.META_BASE_URL || "https://api.meta.ai/v1").replace(/\/$/, "");
 const model = process.env.META_MODEL_ID || "muse-spark-1.3";
-
+const args = new Set(process.argv.slice(2));
+const modes = ["--list", "--basic", "--structured", "--all"].filter((flag) => args.has(flag));
+if (args.has("--help") || args.has("-h")) {
+  console.log("Usage: npm run smoke:meta -- [--list|--basic|--structured|--all]");
+  console.log("Default is --list (no inference). --basic and --structured each make one inference call. --all makes two.");
+  process.exit(0);
+}
+if (args.size > 1 || modes.length > 1) {
+  console.error("Choose only one mode: --list, --basic, --structured, or --all.");
+  process.exit(2);
+}
+const mode = modes[0] || "--list";
 if (!key) {
   console.error("BLOCKED: MODEL_API_KEY is not set. Set it in your local shell; never commit it.");
   process.exit(2);
@@ -29,70 +45,79 @@ async function request(path, body) {
   try { parsed = JSON.parse(raw); } catch { parsed = null; }
   return { status: response.status, ok: response.ok, parsed, raw: parsed ? "" : raw.slice(0, 400) };
 }
-
 function summarizeFailure(result) {
   const providerMessage = result.parsed?.error?.message || result.parsed?.message || result.raw || "No response body";
   return String(providerMessage).replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]").slice(0, 500);
 }
-
-console.log(`Meta API smoke test · base=${baseURL} · model=${model}`);
-const listing = await request("/models");
-console.log(`1. GET /models: HTTP ${listing.status}`);
-if (!listing.ok) {
-  console.error(`   Failed: ${summarizeFailure(listing)}`);
-  console.error("   Stop here: check key, account, and base URL.");
-  process.exit(1);
+async function infer(body, label, validate) {
+  const result = await request("/chat/completions", body);
+  console.log(`${label}: HTTP ${result.status}`);
+  if (!result.ok) {
+    console.error(`   Failed: ${summarizeFailure(result)}`);
+    process.exit(1);
+  }
+  const content = result.parsed?.choices?.[0]?.message?.content;
+  if (typeof content !== "string" || !content.length) {
+    console.error("   Request succeeded but response had no message content.");
+    process.exit(1);
+  }
+  try { validate(content); }
+  catch (error) {
+    console.error(`   Response validation failed: ${error instanceof Error ? error.message : "unknown error"}`);
+    process.exit(1);
+  }
 }
-const modelIds = Array.isArray(listing.parsed?.data) ? listing.parsed.data.map(x => x?.id).filter(Boolean) : [];
-console.log(`   Model listing succeeded (${modelIds.length} IDs returned). This does NOT prove inference access.`);
-console.log(`   Configured model appears in listing: ${modelIds.includes(model) ? "yes" : "no/unknown"}`);
-
-const basic = await request("/chat/completions", {
-  model,
-  temperature: 0,
-  messages: [{ role: "user", content: "Reply with exactly: OK" }]
-});
-console.log(`2. Basic inference: HTTP ${basic.status}`);
-if (!basic.ok) {
-  console.error(`   Failed: ${summarizeFailure(basic)}`);
-  console.error("   Diagnose billing/payment method/visible credits/account model access before changing app code.");
-  process.exit(1);
+console.log(`Meta API diagnostic · mode=${mode} · base=${baseURL} · model=${model}`);
+if (mode === "--list" || mode === "--all") {
+  const listing = await request("/models");
+  console.log(`Model listing: HTTP ${listing.status}`);
+  if (!listing.ok) {
+    console.error(`   Failed: ${summarizeFailure(listing)}`);
+    process.exit(1);
+  }
+  const modelIds = Array.isArray(listing.parsed?.data) ? listing.parsed.data.map(x => x?.id).filter(Boolean) : [];
+  console.log(`   ${modelIds.length} model IDs returned; configured model appears in listing: ${modelIds.includes(model) ? "yes" : "no/unknown"}`);
+  if (mode === "--list") {
+    console.log("PASS: model listing only. No inference calls were made.");
+    process.exit(0);
+  }
 }
-const basicText = basic.parsed?.choices?.[0]?.message?.content;
-console.log(`   Inference succeeded. Response preview: ${String(basicText ?? "[no message content]").slice(0, 100)}`);
-
-const structured = await request("/chat/completions", {
-  model,
-  messages: [
-    { role: "system", content: "Return an object whose ok field is true." },
-    { role: "user", content: "Return the requested object." }
-  ],
-  response_format: {
-    type: "json_schema",
-    json_schema: {
-      name: "smoke_check",
-      schema: {
-        type: "object",
-        additionalProperties: false,
-        properties: { ok: { type: "boolean" } },
-        required: ["ok"]
+if (mode === "--basic" || mode === "--all") {
+  await infer({
+    model,
+    temperature: 0,
+    max_tokens: 8,
+    messages: [{ role: "user", content: "Reply with exactly: OK" }]
+  }, "Basic inference", (content) => {
+    if (content.trim() !== "OK") throw new Error(`Expected OK, received ${JSON.stringify(content.slice(0, 80))}`);
+  });
+  console.log("   Basic inference returned OK.");
+}
+if (mode === "--structured" || mode === "--all") {
+  await infer({
+    model,
+    temperature: 0,
+    max_tokens: 30,
+    messages: [
+      { role: "system", content: "Return an object whose ok field is true." },
+      { role: "user", content: "Return the requested object." }
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "smoke_check",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: { ok: { type: "boolean" } },
+          required: ["ok"]
+        }
       }
     }
-  }
-});
-console.log(`3. JSON Schema structured-output inference: HTTP ${structured.status}`);
-if (!structured.ok) {
-  console.error(`   Failed: ${summarizeFailure(structured)}`);
-  console.error("   Basic inference works; investigate structured-output schema support/request format.");
-  process.exit(1);
+  }, "JSON Schema inference", (content) => {
+    const obj = JSON.parse(content);
+    if (obj.ok !== true) throw new Error("Expected { ok: true }");
+  });
+  console.log("   JSON Schema structured output returned valid JSON.");
 }
-try {
-  const content = structured.parsed?.choices?.[0]?.message?.content;
-  const obj = JSON.parse(content);
-  if (obj.ok !== true) throw new Error("Expected { ok: true }");
-  console.log("   JSON Schema structured output succeeded and returned valid JSON.");
-} catch (error) {
-  console.error(`   Request succeeded but response did not validate as expected: ${error instanceof Error ? error.message : "unknown error"}`);
-  process.exit(1);
-}
-console.log("PASS: model listing, basic inference, and JSON Schema structured output all succeeded.");
+console.log("PASS: selected diagnostic completed.");

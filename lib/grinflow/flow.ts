@@ -29,7 +29,7 @@ function stateFromGaps(c: OfferCase): OfferCase["state"] {
 
 function assertOpen(c: OfferCase) {
   if (c.state === "approved" || c.state === "rejected") {
-    throw new FlowError("case_closed", `La operación ya tiene una decisión: ${c.state}.`)
+    throw new FlowError("case_closed", `This operation already has a decision: ${c.state}.`)
   }
 }
 
@@ -90,23 +90,23 @@ function parseValue(field: OfferFieldName, raw: string, now: string): unknown {
     case "quantity":
     case "weightKg": {
       const n = Number(text.replace(",", "."))
-      if (!Number.isFinite(n) || n <= 0) throw new FlowError("invalid_answer", `"${raw}" no es un número válido.`)
+      if (!Number.isFinite(n) || n <= 0) throw new FlowError("invalid_answer", `"${raw}" is not a valid number.`)
       return n
     }
     case "condition":
       return text as Condition
     case "pickupWindow": {
       const m = text.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/)
-      if (!m) throw new FlowError("invalid_answer", "Usa el formato HH:MM-HH:MM.")
+      if (!m) throw new FlowError("invalid_answer", "Use the format HH:MM-HH:MM.")
       const pad = (s: string) => s.padStart(2, "0")
       const start = `${dayOf(now)}T${pad(m[1])}:${m[2]}:00.000Z`
       const end = `${dayOf(now)}T${pad(m[3])}:${m[4]}:00.000Z`
-      if (Date.parse(start) >= Date.parse(end)) throw new FlowError("invalid_answer", "El horario termina antes de empezar.")
+      if (Date.parse(start) >= Date.parse(end)) throw new FlowError("invalid_answer", "The window ends before it starts.")
       return { start, end }
     }
     case "pickupLocation": {
       const parts = text.split(",").map((p) => Number(p.trim()))
-      if (parts.length !== 2 || parts.some((p) => !Number.isFinite(p))) throw new FlowError("invalid_answer", "Usa el formato lat,lng.")
+      if (parts.length !== 2 || parts.some((p) => !Number.isFinite(p))) throw new FlowError("invalid_answer", "Use the format lat,lng.")
       return { lat: parts[0], lng: parts[1] }
     }
     default:
@@ -125,7 +125,7 @@ export function answerInteraction(
 ): OfferCase {
   assertOpen(c)
   const index = c.interactions.findIndex((i) => i.id === interactionId)
-  if (index === -1) throw new FlowError("interaction_not_found", `No existe la solicitud ${interactionId}.`)
+  if (index === -1) throw new FlowError("interaction_not_found", `No request ${interactionId}.`)
   const original = c.interactions[index]
   const field = original.field
   const text = response.text?.trim() ?? ""
@@ -134,7 +134,7 @@ export function answerInteraction(
   let parsed: unknown = null
   if (original.kind === "clarify") {
     if (response.responseId === "provide_value") {
-      if (text === "") throw new FlowError("empty_answer", "La respuesta está vacía.")
+      if (text === "") throw new FlowError("empty_answer", "The answer is empty.")
       parsed = parseValue(field, text, now)
     } else {
       parsed = response.responseId
@@ -180,7 +180,7 @@ export function expireInteractions(c: OfferCase, now: string): OfferCase {
 
 export function cancelInteraction(c: OfferCase, interactionId: string, actor: Actor, reason: string, now: string): OfferCase {
   const index = c.interactions.findIndex((i) => i.id === interactionId)
-  if (index === -1) throw new FlowError("interaction_not_found", `No existe la solicitud ${interactionId}.`)
+  if (index === -1) throw new FlowError("interaction_not_found", `No request ${interactionId}.`)
   const updated: Interaction = cancel(c.interactions[index], actor, reason, now)
   return {
     ...c,
@@ -199,7 +199,7 @@ export function proposeDestinations(c: OfferCase, destinations: Destination[], v
   assertOpen(c)
   const gaps = identifyGaps(c.offer)
   if (gaps.length > 0) {
-    throw new FlowError("missing_information", `Faltan datos antes de proponer destinos: ${gaps.map((g) => g.field).join(", ")}.`)
+    throw new FlowError("missing_information", `Missing data before proposing destinations: ${gaps.map((g) => g.field).join(", ")}.`)
   }
   const proposals = rankProposals(c.offer, destinations, vehicles, c.routeReviews, now)
   const feasible = proposals.filter((p) => p.feasible)
@@ -228,14 +228,14 @@ export function reviewRoute(
   now: string,
 ): OfferCase {
   assertOpen(c)
-  if (actor.role !== "operator") throw new FlowError("not_authorized", "Solo una persona operadora puede verificar una ruta.")
+  if (actor.role !== "operator") throw new FlowError("not_authorized", "Only an operator can verify a route.")
   const proposal = c.proposals.find((p) => p.id === proposalId)
-  if (!proposal) throw new FlowError("proposal_not_found", "Elige una de las propuestas generadas.")
+  if (!proposal) throw new FlowError("proposal_not_found", "Choose one of the generated proposals.")
   if (!onlyNeedsRouteReview(proposal)) {
-    throw new FlowError("route_review_not_applicable", "Solo se verifica la ruta de opciones cuyo único bloqueo es la ruta.")
+    throw new FlowError("route_review_not_applicable", "Only options whose sole blocker is the route can have it verified.")
   }
   const { estimate } = proposal
-  if (!estimate.estimatedArrivalAt) throw new FlowError("route_review_not_applicable", "No hay una estimación de llegada que revisar.")
+  if (!estimate.estimatedArrivalAt) throw new FlowError("route_review_not_applicable", "There is no arrival estimate to review.")
 
   const review = {
     pairKey: pairKey(proposal.destinationId, proposal.vehicleId),
@@ -257,7 +257,7 @@ export function reviewRoute(
       distanceKm: review.distanceKm,
       durationMinutes: review.durationMinutes,
       estimatedArrivalAt: review.estimatedArrivalAt,
-      method: "revision_humana_sobre_estimacion_en_linea_recta",
+      method: "human_review_of_straight_line_estimate",
     }),
   }
 }
@@ -272,19 +272,19 @@ export function recordDecision(
 ): OfferCase {
   assertOpen(c)
   if (actor.role !== "operator") {
-    throw new FlowError("not_authorized", "Solo una persona operadora puede aprobar o rechazar.")
+    throw new FlowError("not_authorized", "Only an operator can approve or reject.")
   }
   const reason = decision.reason?.trim() || null
   let proposalId: string | null = null
 
   if (decision.outcome === "approved") {
-    if (c.state !== "proposed") throw new FlowError("nothing_to_approve", "No hay propuestas viables para aprobar.")
+    if (c.state !== "proposed") throw new FlowError("nothing_to_approve", "There is no feasible proposal to approve.")
     const proposal = c.proposals.find((p) => p.id === decision.proposalId)
-    if (!proposal) throw new FlowError("proposal_not_found", "Elige una de las propuestas generadas.")
-    if (!proposal.feasible) throw new FlowError("proposal_blocked", `La propuesta está bloqueada: ${proposal.blocks.map((b) => b.code).join(", ")}.`)
+    if (!proposal) throw new FlowError("proposal_not_found", "Choose one of the generated proposals.")
+    if (!proposal.feasible) throw new FlowError("proposal_blocked", `The proposal is blocked: ${proposal.blocks.map((b) => b.code).join(", ")}.`)
     proposalId = proposal.id
   } else {
-    if (!reason) throw new FlowError("reason_required", "Un rechazo debe llevar un motivo.")
+    if (!reason) throw new FlowError("reason_required", "A rejection must include a reason.")
     proposalId = decision.proposalId ?? null
   }
 
@@ -296,7 +296,7 @@ export function recordDecision(
       outcome: decision.outcome,
       proposalId,
       reason,
-      note: decision.outcome === "approved" ? "Reserva el producto; la recogida y la entrega se registran aparte." : null,
+      note: decision.outcome === "approved" ? "Places a hold on the supply; pickup and delivery are recorded separately." : null,
     }),
   }
 }

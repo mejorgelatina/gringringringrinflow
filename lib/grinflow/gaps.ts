@@ -24,38 +24,38 @@ export type Gap = {
 }
 
 export const CONDITION_RESPONSES: AllowedResponse[] = [
-  { id: "edible", label: "Apto para consumo", effect: "provide_information" },
-  { id: "past_prime", label: "Pasado de su mejor momento", effect: "provide_information" },
-  { id: "inedible", label: "No apto para consumo", effect: "provide_information" },
-  { id: "unknown", label: "No lo sé", effect: "provide_information" },
+  { id: "edible", label: "Edible", effect: "provide_information" },
+  { id: "past_prime", label: "Past its prime", effect: "provide_information" },
+  { id: "inedible", label: "Not edible", effect: "provide_information" },
+  { id: "unknown", label: "I don't know", effect: "provide_information" },
 ]
 export const CONFIRM_RESPONSES: AllowedResponse[] = [
-  { id: "confirm", label: "Sí, es correcto", effect: "confirm_information" },
-  { id: "reject", label: "No, hay que corregirlo", effect: "reject_information" },
+  { id: "confirm", label: "Yes, that's right", effect: "confirm_information" },
+  { id: "reject", label: "No, it needs correcting", effect: "reject_information" },
 ]
 // Free answers travel in the response text; the value is parsed by the flow.
-export const VALUE_RESPONSES: AllowedResponse[] = [{ id: "provide_value", label: "Enviar dato", effect: "provide_information" }]
+export const VALUE_RESPONSES: AllowedResponse[] = [{ id: "provide_value", label: "Send value", effect: "provide_information" }]
 
 const LABELS: Record<OfferFieldName, string> = {
-  product: "el producto",
-  category: "la categoría",
-  quantity: "la cantidad",
-  unit: "la unidad",
-  weightKg: "el peso aproximado en kg",
-  condition: "el estado del producto",
-  pickupLocation: "la ubicación de recogida",
-  pickupWindow: "el horario de recogida",
+  product: "the product",
+  category: "the category",
+  quantity: "the quantity",
+  unit: "the unit",
+  weightKg: "the approximate weight in kg",
+  condition: "the product condition",
+  pickupLocation: "the pickup location",
+  pickupWindow: "the pickup window",
 }
 
 const CLARIFY_QUESTIONS: Record<OfferFieldName, string> = {
-  product: "¿Qué producto estás ofreciendo?",
-  category: "¿A qué categoría pertenece? (panificados, verduras, frutas, lacteos, abarrotes, proteina, organico)",
-  quantity: "¿Cuántas unidades hay?",
-  unit: "¿En qué unidad? (cajas, kg, piezas, bolsas)",
-  weightKg: "¿Cuánto pesa en total, aproximadamente, en kg?",
-  condition: "¿En qué estado está el producto?",
-  pickupLocation: "¿Dónde se recoge? (lat,lng)",
-  pickupWindow: "¿En qué horario se puede recoger? (HH:MM-HH:MM)",
+  product: "What product are you offering?",
+  category: "Which category is it? (panificados, verduras, frutas, lacteos, abarrotes, proteina, organico)",
+  quantity: "How many units are there?",
+  unit: "In what unit? (boxes, kg, pieces, bags)",
+  weightKg: "Roughly how much does it weigh in total, in kg?",
+  condition: "What condition is the product in?",
+  pickupLocation: "Where is the pickup? (lat,lng)",
+  pickupWindow: "When can it be picked up? (HH:MM-HH:MM)",
 }
 
 function formatValue(field: OfferFieldName, value: unknown): string {
@@ -83,7 +83,7 @@ export function identifyGaps(offer: Offer): Gap[] {
         field,
         kind: "confirm",
         targetRole: "donor",
-        question: `¿Confirmas ${LABELS[field]}: ${formatValue(field, tracked.value)}?`,
+        question: `Can you confirm ${LABELS[field]}: ${formatValue(field, tracked.value)}?`,
         allowedResponses: CONFIRM_RESPONSES,
       })
     }

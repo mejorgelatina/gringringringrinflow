@@ -9,7 +9,7 @@ import type { Actor, Interaction } from "./types.ts"
 type EngineResult = { ok: boolean; code?: string; message?: string; request?: unknown }
 
 function unwrap(result: EngineResult, base: Interaction | null): Interaction {
-  if (!result.ok) throw new FlowError(result.code ?? "interaction_failed", result.message ?? "La solicitud no se pudo procesar.")
+  if (!result.ok) throw new FlowError(result.code ?? "interaction_failed", result.message ?? "The request could not be processed.")
   const request = result.request as Omit<Interaction, "field" | "kind">
   // The engine spreads the request it receives, so field/kind survive updates; on creation we add them.
   return base ? { ...base, ...request } : (request as Interaction)
@@ -44,7 +44,7 @@ export function isExpired(interaction: Interaction, now: string): boolean {
 export function answerInteraction(interaction: Interaction, actor: Actor, responseId: string, text: string, now: string): Interaction {
   // The engine would turn a late answer into an expiry; the flow records expiries in its own sweep instead.
   if (interaction.status === "pending" && isExpired(interaction, now)) {
-    throw new FlowError("interaction_expired", `La solicitud venció a las ${interaction.expiresAt.slice(11, 16)}.`)
+    throw new FlowError("interaction_expired", `The request expired at ${interaction.expiresAt.slice(11, 16)}.`)
   }
   return unwrap(respondToInteraction(interaction, { responseId, actorId: actor.id, actorRoles: [actor.role], text, now: Date.parse(now) }), interaction)
 }

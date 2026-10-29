@@ -105,8 +105,8 @@ export function extractLocally(message: string): Extraction {
   if (kind === "supply_announced" && !location) unresolved.push("location");
   if (kind === "supply_announced" && condition === "unknown") unresolved.push("condition");
   const reviewReasons = [];
-  if (approximate) reviewReasons.push("La cantidad parece estimada; requiere confirmación.");
-  if (unresolved.length) reviewReasons.push(`Faltan datos críticos: ${unresolved.join(", ")}.`);
+  if (approximate) reviewReasons.push("Quantity appears to be an estimate and requires confirmation.");
+  if (unresolved.length) reviewReasons.push(`Critical fields are missing: ${unresolved.join(", ")}.`);
   const event = { kind, item: category ? (category === "panificados" ? "pan" : category) : null, category, quantity, unit, quantity_basis: quantity === null ? null : approximate ? "estimated" : "stated", condition, deadline_hour: deadlineHour, location, unresolved, quote } as const;
   return { events: [event], residual_text: "", needs_review: reviewReasons.length > 0, review_reasons: reviewReasons };
 }
