@@ -29,10 +29,10 @@ test("local fallback analyzes nothing and claims nothing", () => {
 })
 
 test("image data URLs are restricted by type and size", () => {
-  assert.ok(isAcceptableImageDataUrl("data:image/jpeg;base64,AAAA"))
+  assert.ok(isAcceptableImageDataUrl("data:image/jpeg;base64,/9j/4AAQ"))
   assert.ok(!isAcceptableImageDataUrl("data:image/svg+xml;base64,AAAA"))
   assert.ok(!isAcceptableImageDataUrl("https://example.com/a.jpg"))
-  assert.ok(!isAcceptableImageDataUrl("data:image/jpeg;base64," + "A".repeat(3_000_001)))
+  assert.ok(!isAcceptableImageDataUrl("data:image/jpeg;base64,/9j/" + "A".repeat(3_000_001)))
 })
 
 test("schema rejects a model trying to assert safety", () => {

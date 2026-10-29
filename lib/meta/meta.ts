@@ -79,14 +79,16 @@ export function extractLocally(message: string): Extraction {
   if (/^(ok|va|gracias|sale|👍|listo)[.!\s]*$/i.test(text) || /el mes pasado|la semana pasada|el año pasado/.test(lower)) {
     return { events: [], residual_text: text, needs_review: false, review_reasons: [] };
   }
-  const category = /pan|bolillo|telera|concha|pastel/.test(lower) ? "panificados" : /jitomate|tomate|verdura|lechuga/.test(lower) ? "verduras" : /fresa|manzana|plátano|platano|fruta/.test(lower) ? "frutas" : /leche|yogur|queso/.test(lower) ? "lacteos" : /arroz|frijol|abarrote/.test(lower) ? "abarrotes" : /pollo|carne|huevo/.test(lower) ? "proteina" : null;
-  const qty = lower.match(/(?:como\s+unas?|aprox(?:imadamente)?\.?\s*)?(\d+(?:[.,]\d+)?)/);
+  // English keywords keep the demo usable for judges; Spanish remains the primary input.
+  const category = /pan|bolillo|telera|concha|pastel|\bbread\b|bakery|bagels?/.test(lower) ? "panificados" : /jitomate|tomate|verdura|lechuga|tomato(es)?\b|vegetables?|lettuce/.test(lower) ? "verduras" : /fresa|manzana|plátano|platano|fruta|apples?\b|bananas?\b|fruit/.test(lower) ? "frutas" : /leche|yogur|queso|\bmilk\b|cheese/.test(lower) ? "lacteos" : /arroz|frijol|abarrote|\brice\b|\bbeans\b|canned/.test(lower) ? "abarrotes" : /pollo|carne|huevo|chicken|\bmeat\b|\beggs?\b/.test(lower) ? "proteina" : null;
+  const englishItem = lower.match(/\b(apples?|bananas?|bread|bagels?|tomato(?:es)?|lettuce|milk|cheese|rice|beans|chicken|eggs?)\b/);
+  const qty = lower.match(/(?:como\s+unas?|aprox(?:imadamente)?\.?\s*)?(\d+(?:[.,]\d+)?)(?!\d|[.,]\d|\s*(?::\d|am\b|pm\b))/);
   const quantity = qty ? Number(qty[1].replace(",", ".")) : null;
-  const approximate = qty ? /como\s+unas?|aprox|más o menos|mas o menos|alrededor de/.test(lower.slice(Math.max(0, (qty.index ?? 0) - 20), (qty.index ?? 0) + qty[0].length)) : false;
-  const unit = /cajas?/.test(lower) ? "caja" : /kg|kilos?/.test(lower) ? "kg" : /tarimas?/.test(lower) ? "tarima" : /piezas?/.test(lower) ? "pieza" : null;
+  const approximate = qty ? /como\s+unas?|aprox|más o menos|mas o menos|alrededor de|about|around|roughly/.test(lower.slice(Math.max(0, (qty.index ?? 0) - 20), (qty.index ?? 0) + qty[0].length)) : false;
+  const unit = /cajas?/.test(lower) ? "caja" : /\bbox(es)?\b/.test(lower) ? "box" : /kg|kilos?/.test(lower) ? "kg" : /tarimas?|pallets?/.test(lower) ? "tarima" : /piezas?/.test(lower) ? "pieza" : null;
   const locationMatch = lower.match(/(?:en la colonia|en colonia|en la zona de|ubicad[oa] en)\s+([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,2})/);
-  const location = locationMatch ? locationMatch[1].trim().replace(/[,.]$/, "") : (/\broma\b/.test(lower) ? "Roma" : null);
-  const hourMatch = lower.match(/(?:antes de las?|a las?|para las?)\s*(\d{1,2})(?::\d{2})?\s*(am|pm|de la mañana|de la tarde|de la noche)?/);
+  const location = locationMatch ? locationMatch[1].trim().replace(/[,.]$/, "") : (/\broma\b/.test(lower) ? "Roma" : /\bcentro\b/.test(lower) ? "Centro" : null);
+  const hourMatch = lower.match(/(?:antes de las?|a las?|para las?|before|\bby)\s*(\d{1,2})(?::\d{2})?\s*(am|pm|de la mañana|de la tarde|de la noche)?/);
   let deadlineHour: number | null = null;
   if (hourMatch) {
     deadlineHour = Number(hourMatch[1]);
@@ -94,8 +96,11 @@ export function extractLocally(message: string): Extraction {
     if (/pm|tarde|noche/.test(suffix) && deadlineHour < 12) deadlineHour += 12;
     if (/am|mañana/.test(suffix) && deadlineHour === 12) deadlineHour = 0;
   }
-  const condition = /fresc[oa]s?|en buen estado|apto para consumo/.test(lower) ? "edible" : /echad[oa]s? a perder|podrid[oa]s?|descompuest[oa]s?|no apt[oa]/.test(lower) ? "inedible" : /pasad[oa]s? de madur|muy madur/.test(lower) ? "past_prime" : "unknown";
-  const isCapacity = /camioneta|camión|camion|vehículo|vehiculo|transporte|cabe harto/.test(lower) && !category;
+  const needsInspection = /inspecci|inspect|revisar|check (them|it)/.test(lower);
+  const statedCondition = /fresc[oa]s?|en buen estado|apto para consumo|\bfresh\b|good condition/.test(lower) ? "edible" : /echad[oa]s? a perder|podrid[oa]s?|descompuest[oa]s?|no apt[oa]|rotten|spoiled|mo(u)?ldy/.test(lower) ? "inedible" : /pasad[oa]s? de madur|muy madur|overripe/.test(lower) ? "past_prime" : "unknown";
+  // "Some boxes need inspection" means the donor is not vouching for the lot.
+  const condition = needsInspection && statedCondition === "edible" ? "unknown" : statedCondition;
+  const isCapacity = /camioneta|camión|camion|vehículo|vehiculo|transporte|cabe harto|\bvan\b|\btruck\b/.test(lower) && !category;
   const kind = isCapacity ? "capacity_offered" : category || quantity ? "supply_announced" : "unknown";
   const quote = text;
   const unresolved = [];
@@ -106,7 +111,8 @@ export function extractLocally(message: string): Extraction {
   if (kind === "supply_announced" && condition === "unknown") unresolved.push("condition");
   const reviewReasons = [];
   if (approximate) reviewReasons.push("Quantity appears to be an estimate and requires confirmation.");
+  if (needsInspection) reviewReasons.push("The donor says part of the lot needs inspection.");
   if (unresolved.length) reviewReasons.push(`Critical fields are missing: ${unresolved.join(", ")}.`);
-  const event = { kind, item: category ? (category === "panificados" ? "pan" : category) : null, category, quantity, unit, quantity_basis: quantity === null ? null : approximate ? "estimated" : "stated", condition, deadline_hour: deadlineHour, location, unresolved, quote } as const;
+  const event = { kind, item: englishItem ? englishItem[1] : category ? (category === "panificados" ? "pan" : category) : null, category, quantity, unit, quantity_basis: quantity === null ? null : approximate ? "estimated" : "stated", condition, deadline_hour: deadlineHour, location, unresolved, quote } as const;
   return { events: [event], residual_text: "", needs_review: reviewReasons.length > 0, review_reasons: reviewReasons };
 }

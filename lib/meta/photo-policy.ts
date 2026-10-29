@@ -69,9 +69,74 @@ export function assessPhotoLocally(): PhotoAssessment {
   };
 }
 
-const DATA_URL = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+/** Labelled fixtures so the damage-blocking rule can be demonstrated without a model call. Never used when Meta is on. */
+export const PHOTO_FIXTURES: Record<"clean" | "mold", PhotoAssessment> = {
+  clean: {
+    visible_items: [{ item: "apples", category: "frutas", approx_count: 12, packaging: "cardboard boxes" }],
+    visible_label_text: ["PRODUCE OF MEXICO"],
+    visible_issues: [],
+    visual_grade: "no_visible_issues",
+    image_quality: "good",
+    notes: "SIMULATED FIXTURE · no model was called. Boxes look intact; a photo cannot show temperature or storage history."
+  },
+  mold: {
+    visible_items: [{ item: "apples", category: "frutas", approx_count: 12, packaging: "cardboard boxes" }],
+    visible_label_text: [],
+    visible_issues: [{ issue: "mold", note: "white fuzzy patches on fruit in one box" }, { issue: "crushed_packaging", note: "one box corner crushed" }],
+    visual_grade: "severe_visible_issues",
+    image_quality: "good",
+    notes: "SIMULATED FIXTURE · no model was called. Shows how visible damage is handled."
+  }
+};
+
+const DATA_URL = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
 /** ~3 MB of base64 keeps the request under Vercel's 4.5 MB body limit. */
 export const MAX_IMAGE_DATA_URL_LENGTH = 3_000_000;
+
+/** Checks the decoded bytes, not only the declared type, so a renamed file is rejected before any model call. */
 export function isAcceptableImageDataUrl(value: string): boolean {
-  return value.length <= MAX_IMAGE_DATA_URL_LENGTH && DATA_URL.test(value);
+  if (value.length > MAX_IMAGE_DATA_URL_LENGTH) return false;
+  const match = DATA_URL.exec(value);
+  if (!match) return false;
+  const head = Buffer.from(match[2].slice(0, 24), "base64");
+  const declared = match[1];
+  const isJpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+  const isPng = head.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const isWebp = head.subarray(0, 4).toString("latin1") === "RIFF" && head.subarray(8, 12).toString("latin1") === "WEBP";
+  return declared === "jpeg" ? isJpeg : declared === "png" ? isPng : isWebp;
+}
+
+export type Condition = "edible" | "past_prime" | "inedible" | "unknown";
+export type HumanConfirmation = { condition: Exclude<Condition, "unknown">; reviewer: string; at: string; note?: string };
+export type ObservedCondition = PhotoRouting["suggestedCondition"] | "not_assessed" | "assessment_failed";
+
+/**
+ * Keeps the three sources apart: what the donor said, what a model saw, what a person confirmed.
+ * Only a person can make food eligible for people when a photo raised a doubt or could not be read.
+ */
+export type ConditionEvidence = {
+  stated: Condition;
+  observed: ObservedCondition;
+  humanConfirmed: HumanConfirmation | null;
+  effective: Condition;
+  peopleRouteBlocked: boolean;
+  reason: string;
+};
+
+export function resolveCondition(stated: Condition, observed: ObservedCondition, human: HumanConfirmation | null): ConditionEvidence {
+  let effective: Condition = stated;
+  let reason = "Condition as stated by the donor.";
+  if (human) {
+    effective = human.condition;
+    reason = `Confirmed by ${human.reviewer} after inspection.`;
+  } else if (observed === "assessment_failed") {
+    effective = stated === "edible" ? "unknown" : stated;
+    reason = "Photo could not be assessed, so a stated \"edible\" is not trusted until a person confirms.";
+  } else if (observed === "past_prime" || observed === "inedible") {
+    effective = stated === "edible" ? "unknown" : stated;
+    reason = "The photo shows possible damage, so condition needs a person's inspection.";
+  } else if (stated === "unknown") {
+    reason = "Nobody has stated the condition yet.";
+  }
+  return { stated, observed, humanConfirmed: human, effective, peopleRouteBlocked: effective !== "edible", reason };
 }
