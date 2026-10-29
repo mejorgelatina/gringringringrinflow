@@ -1,0 +1,19 @@
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.trip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:4px}
+.fact{background:white;border:1px solid var(--line);border-radius:10px;padding:12px}
+.fact span{display:block;font-size:11px;color:var(--muted)}
+.fact strong{display:block;font-size:14px;margin-top:4px}
+.toggles{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:14px}
+.toggle{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#46534e;cursor:pointer}
+.toggle input{width:16px;height:16px;accent-color:var(--green)}
+.card{background:white;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.card.ok{border-color:#bfe3d2}
+.cardHead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.cardHead h3{font:700 16px var(--display);margin:0 0 4px}
+.cardHead p{margin:0;font-size:12px;color:var(--muted)}
+.numbers{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0 4px;font-size:12px;color:#46534e}
+.numbers b{font:700 15px var(--display);color:var(--ink);margin-right:4px}
+.blockers{margin:10px 0 0;padding-left:17px;font-size:12px;line-height:1.55;color:#9a4b40}
+.note{font-size:11px;color:var(--muted);margin-top:10px}
+.actions{display:flex;gap:8px;margin-top:12px}
+@media(max-width:820px){.grid,.trip{grid-template-columns:1fr}}
