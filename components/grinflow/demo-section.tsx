@@ -2,7 +2,8 @@ const pipeline = ["WhatsApp Input", "Structured JSON Parsing", "Context Engine",
 
 const liveDemos = [
   { href: "/demo/flow", title: "Offer to decision", desc: "Missing data, donor confirmation, explained matches, route review and a logged human decision." },
-  { href: "/intake", title: "Message intake", desc: "Turn an informal Spanish message into a structured event with evidence and open questions." },
+  { href: "/whatsapp", title: "WhatsApp channel", desc: "A donor messages or sends a photo; the same pipeline drafts the offer and replies with one question." },
+  { href: "/intake", title: "Message and photo intake", desc: "Structured event with evidence, a photo check that never certifies safety, and an operator review step." },
   { href: "/platform", title: "Operations console", desc: "Offers, recipients, transport, lifecycle and audit log for the network." },
 ]
 
@@ -39,7 +40,7 @@ export function DemoSection() {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-3 md:grid-cols-3">
+        <div className="mt-8 grid gap-3 md:grid-cols-2">
           {liveDemos.map((demo) => (
             <a
               key={demo.href}

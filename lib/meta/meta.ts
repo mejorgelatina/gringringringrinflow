@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { ExtractionSchema, type Extraction } from "./types";
+import { ExtractionSchema, type Extraction } from "./types.ts";
 
 const prompt = `You extract operational events from informal Mexican Spanish messages for a food-rescue coordination system.
 Return one JSON object with keys events, residual_text, needs_review, review_reasons. Each event keys: kind (supply_announced|demand_declared|capacity_offered|constraint_reported|status_update|correction|unknown), item, category (panificados|verduras|frutas|lacteos|abarrotes|proteina|organico or null), quantity (number or null), unit, quantity_basis (stated|estimated|null), condition (edible|past_prime|inedible|unknown), deadline_hour (0-23 or null), location, unresolved (array of strings), quote (exact substring from the message).

@@ -1,0 +1,120 @@
+import { processIntake, type IntakeDeps, type IntakeResult } from "../intake/process.ts";
+import { isAcceptableImageDataUrl } from "../meta/photo-policy.ts";
+import { isAllowedSender, maskPhone, type InboundMessage } from "./webhook.ts";
+
+export type TraceStep = { at: string; step: string; detail: string };
+export type Trace = {
+  id: string;
+  source: "webhook" | "simulator";
+  from: string;
+  receivedAt: string;
+  steps: TraceStep[];
+  reply: string | null;
+  replyStatus: "sent" | "preview" | "failed" | "none";
+  metaCalls: number;
+  intake: Pick<IntakeResult, "provider" | "supply" | "condition" | "photo"> & { feasible: number; blocked: number } | null;
+};
+
+export type HandlerContext = {
+  deps: IntakeDeps;
+  allowlist: string | undefined;
+  /** When false or missing, the reply is composed and traced but never sent. */
+  send: ((to: string, body: string) => Promise<string | null>) | null;
+  fetchMedia: ((mediaId: string) => Promise<string>) | null;
+  photoFixture?: "clean" | "mold";
+  source: Trace["source"];
+  now?: () => Date;
+};
+
+const CATEGORY_ES: Record<string, string> = { panificados: "pan", verduras: "verdura", frutas: "fruta", lacteos: "lácteos", abarrotes: "abarrotes", proteina: "proteína", organico: "orgánico" };
+const MISSING_ES: Record<string, string> = { quantity: "¿Cuántas piezas o cajas son, aproximadamente cuántos kilos?", deadline_hour: "¿Hasta qué hora se puede recoger?", location: "¿En qué dirección o colonia se recoge?", category: "¿Qué producto es?", condition: "¿El producto está apto para consumo humano, pasado de su mejor momento, o no comestible?" };
+const MISSING_EN: Record<string, string> = { quantity: "How many boxes or pieces, and roughly how many kilos?", deadline_hour: "Until what time can it be picked up?", location: "What is the pickup address or neighborhood?", category: "What product is it?", condition: "Is it fit for people, past its prime, or not edible?" };
+
+export function looksEnglish(text: string): boolean {
+  return /\b(we|have|the|boxes|pickup|available|today|need)\b/i.test(text) && !/\b(tenemos|cajas|hay|para|recoger)\b/i.test(text);
+}
+
+/** One short reply: what was understood, the single most useful next question, and who decides. */
+export function composeReply(text: string, r: IntakeResult): string {
+  const en = looksEnglish(text);
+  const s = r.supply;
+  if (!s) return en
+    ? "Thanks. I didn't find a food offer in that message. If you have surplus food, tell me what, how much, where and until when."
+    : "Gracias. No encontré una oferta de alimento en tu mensaje. Si tienes excedente, dime qué es, cuánto, dónde y hasta qué hora.";
+  const ev = r.extraction.events.find(e => e.kind === "supply_announced");
+  const item = ev?.item || (s.category ? (en ? s.category : CATEGORY_ES[s.category] ?? s.category) : (en ? "food" : "alimento"));
+  const unit = ev?.unit && s.quantity !== 1 ? (ev.unit === "box" ? "boxes" : ev.unit === "kg" || ev.unit.endsWith("s") ? ev.unit : `${ev.unit}s`) : ev?.unit ?? "";
+  const qty = s.quantity != null ? `${s.quantityBasis === "estimated" ? (en ? "about " : "aprox. ") : ""}${s.quantity} ${unit}`.trim() : null;
+  const place = s.location ? s.location.replace(/\b\p{L}/gu, c => c.toUpperCase()) : null;
+  const parts = [qty, item, place ? (en ? `at ${place}` : `en ${place}`) : null, s.deadlineHour != null ? (en ? `before ${s.deadlineHour}:00` : `antes de las ${s.deadlineHour}:00`) : null].filter(Boolean);
+  const lines = [en ? `Thanks! I noted: ${parts.join(", ")}.` : `¡Gracias! Registré: ${parts.join(", ")}.`];
+  const missing = ev?.unresolved?.[0];
+  const photoQuestion = r.photo?.status === "assessed" && r.photo.routing.suggestedCondition !== "unknown" ? r.photo.routing.questionForDonor : null;
+  if (r.photo?.status === "failed") lines.push(en ? "I couldn't read the photo. Could you send another one?" : "No pude revisar la foto. ¿Me mandas otra?");
+  else if (photoQuestion) lines.push(en ? photoQuestion : "Tu foto muestra posible daño. ¿Sigue apto para personas, o solo para composta?");
+  else if (missing) lines.push((en ? MISSING_EN : MISSING_ES)[missing] ?? (en ? `Can you confirm ${missing.replaceAll("_", " ")}?` : `¿Me confirmas ${missing.replaceAll("_", " ")}?`));
+  else if (s.quantityBasis === "estimated") lines.push(en ? `Can you confirm the exact quantity?` : "¿Me confirmas la cantidad exacta?");
+  else if (s.condition === "unknown") lines.push(en ? MISSING_EN.condition : MISSING_ES.condition);
+  lines.push(en ? "A person on our team reviews this before any pickup is arranged." : "Una persona del equipo lo revisa antes de coordinar cualquier recolección.");
+  return lines.join("\n");
+}
+
+const seen = new Map<string, number>();
+/** Meta redelivers webhooks; a repeated message id must not trigger a second model call. */
+export function alreadyHandled(id: string, nowMs = Date.now()): boolean {
+  for (const [k, t] of seen) if (nowMs - t > 3_600_000) seen.delete(k);
+  if (seen.has(id)) return true;
+  seen.set(id, nowMs);
+  return false;
+}
+
+export async function handleInbound(msg: InboundMessage, ctx: HandlerContext): Promise<Trace> {
+  const now = ctx.now ?? (() => new Date());
+  const trace: Trace = { id: msg.id, source: ctx.source, from: maskPhone(msg.from), receivedAt: now().toISOString(), steps: [], reply: null, replyStatus: "none", metaCalls: 0, intake: null };
+  const step = (name: string, detail: string) => trace.steps.push({ at: now().toISOString(), step: name, detail });
+  step("received", `${msg.type} message${msg.text ? ` (${msg.text.length} chars)` : ""}`);
+
+  if (!isAllowedSender(msg.from, ctx.allowlist)) { step("ignored", "Sender is not on WHATSAPP_ALLOWED_SENDERS; no model call, no reply."); return trace; }
+  if (msg.type === "other") { step("ignored", "Only text and image messages are handled."); return trace; }
+
+  let image: string | undefined;
+  if (msg.type === "image" && msg.mediaId) {
+    if (!ctx.fetchMedia) step("photo", "Media download not configured; continuing with the caption only.");
+    else {
+      try {
+        const dataUrl = await ctx.fetchMedia(msg.mediaId);
+        if (isAcceptableImageDataUrl(dataUrl)) { image = dataUrl; step("photo", "Image downloaded from WhatsApp and validated (not stored)."); }
+        else step("photo", "Image rejected by validation; no model call for it.");
+      } catch (e) { step("photo", `Image download failed (${e instanceof Error ? e.message : "error"}); continuing with the caption only.`); }
+    }
+  }
+  const text = msg.text.trim() || (image ? "(photo without caption)" : "");
+  if (!text) { step("ignored", "Empty message."); return trace; }
+
+  try {
+    const r = await processIntake(text, image, ctx.deps, ctx.photoFixture);
+    trace.metaCalls = r.metaCalls;
+    const feasible = r.candidates.filter(c => c.feasible).length;
+    trace.intake = { provider: r.provider, supply: r.supply, condition: r.condition, photo: r.photo, feasible, blocked: r.candidates.length - feasible };
+    step("interpreted", `${r.provider} · ${r.metaCalls} Meta call(s) · ${r.supply ? "supply offer drafted" : "no offer found"}`);
+    if (r.condition) step("safety", `${r.condition.reason} Routing condition: ${r.condition.effective}.`);
+    if (r.supply) step("matching", `${feasible} feasible, ${r.candidates.length - feasible} blocked (deterministic gates; nothing booked).`);
+    trace.reply = composeReply(text, r);
+  } catch (e) {
+    step("interpreted", `Intake failed (${e instanceof Error ? e.name : "error"}); no retry.`);
+    trace.reply = looksEnglish(text) ? "Thanks, we got your message. A person on our team will follow up." : "Gracias, recibimos tu mensaje. Una persona del equipo te contactará.";
+  }
+
+  if (!ctx.send) { trace.replyStatus = "preview"; step("reply", "Preview only: WHATSAPP_REPLIES_ENABLED is off or credentials are missing."); return trace; }
+  try { const id = await ctx.send(msg.from, trace.reply); trace.replyStatus = "sent"; step("reply", `Sent via WhatsApp Cloud API${id ? ` (${id.slice(0, 12)}…)` : ""}.`); }
+  catch (e) { trace.replyStatus = "failed"; step("reply", `Send failed (${e instanceof Error ? e.message : "error"}).`); }
+  return trace;
+}
+
+const traces: Trace[] = [];
+/** In-memory, per server instance, newest first. Enough for a demo; not an audit log. */
+export function recordTrace(t: Trace) { traces.unshift(t); traces.length = Math.min(traces.length, 25); }
+/** Public view: webhook traces come from real people, so their reply text and offer details are withheld. */
+export function recentTraces(): Trace[] {
+  return traces.map(t => t.source === "simulator" ? t : { ...t, reply: t.reply ? "(withheld: real sender)" : null, intake: t.intake ? { ...t.intake, supply: null, photo: null } : null });
+}
