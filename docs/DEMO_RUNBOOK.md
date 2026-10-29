@@ -11,6 +11,6 @@ Run everything in **labelled local mode** unless a live Meta test has been plann
 | 2:05–2:35 | `/whatsapp` | Send **Sample 1**, then **Sample 3** with a photo + **Simulate: mold** | Donor-language reply with one question; step-by-step trace. For the live part, show a real message to the test number and the masked trace under *Recent traces* |
 | 2:35–3:00 | `/demo/flow` or close | Offer → missing data → confirmation → route review → decision | Human decision with an ordered event log |
 
-Backhaul has an API (`POST /api/demo/backhaul-preview`) but no screen yet; demonstrate it only with a prepared request, and call it an opportunity preview, not a booking.
+For the backhaul segment use `/backhaul`: click **Confirm everything (demo)**, show that the on-the-way compost run is feasible (+7.3 km net), that the 500 kg load is blocked by capacity and the detour by negative benefit, then untick "Condition confirmed by a person" on the bread to show the food-safety block. Call it an opportunity preview, not a booking.
 
 Before recording: run `pnpm test`, open `/whatsapp` and check **Live setup**, and keep screenshots from `/mnt/project-files/grinflow-demo/` as a fallback.
