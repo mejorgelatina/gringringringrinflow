@@ -90,8 +90,8 @@ test("handler: a failed media download continues with the caption and says so", 
 test("English messages get English replies", () => {
   assert.equal(looksEnglish("We have about 12 boxes of apples"), true)
   assert.equal(looksEnglish("Tenemos 20 cajas de pan"), false)
-  const r = composeReply("We have stuff", { provider: "", model: null, extraction: { events: [], residual_text: "", needs_review: false, review_reasons: [] }, supply: null, photo: null, condition: null, candidates: [], metaCalls: 0 })
-  assert.match(r, /didn't find a food offer/)
+  const r = composeReply("We have stuff", { provider: "", model: null, extraction: { events: [], residual_text: "", needs_review: false, review_reasons: [] }, supply: null, demand: null, photo: null, condition: null, candidates: [], metaCalls: 0 })
+  assert.match(r, /didn't find a food offer or a need/)
 })
 
 test("public traces withhold reply text and offer details from real senders", async () => {

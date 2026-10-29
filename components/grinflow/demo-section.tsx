@@ -1,6 +1,8 @@
 const pipeline = ["WhatsApp Input", "Structured JSON Parsing", "Context Engine", "Decision Execution"]
 
 const liveDemos = [
+  { href: "/send", title: "Give or receive food (web)", desc: "The web version of the WhatsApp channel: a donor posts food, or an organization says it can receive. Same handler, same replies." },
+  { href: "/qr", title: "GrinFlow QR", desc: "Printable codes that open WhatsApp with the first message ready, or the web chat when no number is set." },
   { href: "/demo/flow", title: "Offer to decision", desc: "Missing data, donor confirmation, explained matches, route review and a logged human decision." },
   { href: "/whatsapp", title: "WhatsApp channel", desc: "A donor messages or sends a photo; the same pipeline drafts the offer and replies with one question." },
   { href: "/intake", title: "Message and photo intake", desc: "Structured event with evidence, a photo check that never certifies safety, and an operator review step." },
@@ -11,7 +13,7 @@ export function DemoSection() {
   return (
     <section id="demo" className="border-b border-border">
       <div className="mx-auto max-w-5xl px-6 py-20 md:py-24">
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Product Demo</h2>
+        <h2 className="eyebrow">Product Demo</h2>
         <p className="mt-4 text-2xl tracking-tight md:text-3xl">90-Second MVP Demonstration</p>
 
         <div className="mt-8 overflow-hidden rounded-md border border-border bg-card">
@@ -19,7 +21,7 @@ export function DemoSection() {
             <span aria-hidden="true" className="size-2 rounded-full bg-muted-foreground/40" />
             <span aria-hidden="true" className="size-2 rounded-full bg-muted-foreground/40" />
             <span aria-hidden="true" className="size-2 rounded-full bg-muted-foreground/40" />
-            <p className="ml-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="ml-2 font-mono text-[11px] tracking-[0.02em] text-muted-foreground">
               grinflow — mvp walkthrough
             </p>
           </div>
@@ -34,7 +36,7 @@ export function DemoSection() {
               </svg>
             </span>
             <p className="text-sm text-muted-foreground">Loom recording embed placeholder</p>
-            <p className="max-w-md font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="max-w-md font-mono text-[11px] tracking-[0.02em] text-muted-foreground">
               Replace this container with the demo iframe
             </p>
           </div>
@@ -47,7 +49,7 @@ export function DemoSection() {
               href={demo.href}
               className="group rounded-md border border-border bg-card p-4 transition-colors hover:border-foreground/40"
             >
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Live demo · synthetic data</p>
+              <p className="font-mono text-[11px] tracking-[0.02em] text-muted-foreground">Live demo · synthetic data</p>
               <p className="mt-2 text-base">
                 {demo.title} <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">&rarr;</span>
               </p>
@@ -59,7 +61,7 @@ export function DemoSection() {
         <ol className="mt-8 flex flex-col gap-3 md:flex-row md:items-center">
           {pipeline.map((step, i) => (
             <li key={step} className="flex items-center gap-3">
-              <span className="rounded-md border border-dashed border-foreground/30 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              <span className="rounded-md border border-dashed border-foreground/30 px-3 py-2 font-mono text-[11px] tracking-[0.02em] text-muted-foreground">
                 {step}
               </span>
               {i < pipeline.length - 1 && (

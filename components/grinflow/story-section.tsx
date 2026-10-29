@@ -3,7 +3,7 @@ export function StorySection() {
     <section id="story" className="border-b border-border">
       <div className="mx-auto grid max-w-5xl gap-10 px-6 py-20 md:grid-cols-[180px_1fr] md:py-24">
         <div>
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Why We Started</h2>
+          <h2 className="eyebrow">Why We Started</h2>
           <p className="mt-2 text-sm text-muted-foreground">Founder&apos;s note</p>
         </div>
 

@@ -1,0 +1,95 @@
+/*
+ * grinflow design tokens — the single source for color, type, radius and spacing.
+ * Imported by both root layouts: the site (tailwind, app/globals.css) and the ops
+ * screens (plain css, app/(ops)/ops.css). Docs: docs/design-system.md, live at /design.
+ */
+:root {
+  /* brand green, sampled from the grinflow wordmark (public/grinflow-logo.svg) */
+  --gf-green-50: #f1f9f2;
+  --gf-green-100: #e1f7e1;
+  --gf-green-200: #c4e8cc;
+  --gf-green-300: #96cfa8;
+  --gf-green-400: #5fae82;
+  --gf-green-500: #368a62;
+  --gf-green-600: #2d7553;
+  --gf-green-700: #245e43;
+  --gf-green-800: #1b4733;
+  --gf-green-900: #10211d;
+
+  /* neutrals, slightly green so they sit with the brand */
+  --gf-ink: #10211d;
+  --gf-ink-soft: #3c4a44;
+  --gf-muted: #5c6a63;
+  --gf-subtle: #87938c;
+  --gf-line: #dce2dc;
+  --gf-line-strong: #c2ccc4;
+  --gf-canvas: #f6f7f3;
+  --gf-surface: #ffffff;
+  --gf-surface-sunken: #eef1ec;
+
+  /* status */
+  --gf-success: var(--gf-green-600);
+  --gf-success-bg: var(--gf-green-100);
+  --gf-warn: #7a5a14;
+  --gf-warn-bg: #fff6df;
+  --gf-warn-line: #f0dca6;
+  --gf-danger: #b0432f;
+  --gf-danger-bg: #fff0ec;
+  --gf-info: #2f6a86;
+  --gf-info-bg: #e9f3f7;
+
+  /* type */
+  --gf-font-display: var(--font-gf-display), 'Manrope', system-ui, sans-serif;
+  --gf-font-sans: var(--font-gf-sans), 'DM Sans', system-ui, sans-serif;
+  --gf-font-mono: var(--font-gf-mono), 'DM Mono', ui-monospace, monospace;
+  --gf-text-xs: 0.75rem;   /* 12 labels, meta */
+  --gf-text-sm: 0.8125rem; /* 13 dense ui */
+  --gf-text-md: 0.9375rem; /* 15 body */
+  --gf-text-lg: 1.125rem;  /* 18 lede */
+  --gf-text-xl: 1.5rem;    /* 24 section title */
+  --gf-text-2xl: 2rem;     /* 32 page title */
+  --gf-text-3xl: 3rem;     /* 48 hero, mobile */
+  --gf-text-4xl: 4rem;     /* 64 hero, desktop */
+  --gf-tracking-display: -0.035em;
+  --gf-tracking-label: 0.02em;
+
+  /* shape and space */
+  --gf-radius-sm: 6px;
+  --gf-radius-md: 10px;
+  --gf-radius-lg: 16px;
+  --gf-radius-pill: 999px;
+  --gf-space-1: 4px;
+  --gf-space-2: 8px;
+  --gf-space-3: 12px;
+  --gf-space-4: 16px;
+  --gf-space-6: 24px;
+  --gf-space-8: 32px;
+  --gf-space-12: 48px;
+  --gf-shadow-sm: 0 1px 2px rgb(16 33 29 / 0.06);
+  --gf-shadow-md: 0 8px 24px rgb(16 33 29 / 0.08);
+  --gf-focus: 0 0 0 3px rgb(54 138 98 / 0.25);
+}
+
+/*
+ * rule: no uppercase anywhere. every piece of interface text renders in lowercase,
+ * including the brand name ("grinflow", like the wordmark). what people type or send
+ * (inputs, donor messages, quotes) keeps its own case: add .keep-case to show it as-is.
+ */
+html {
+  text-transform: lowercase;
+}
+button,
+[role='button'],
+::placeholder {
+  text-transform: lowercase;
+}
+input,
+textarea,
+select,
+code,
+pre,
+kbd,
+samp,
+.keep-case {
+  text-transform: none;
+}

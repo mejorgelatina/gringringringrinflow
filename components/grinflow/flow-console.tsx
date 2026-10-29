@@ -148,7 +148,7 @@ export function FlowConsole() {
           {STEPS.map((label, n) => (
             <li
               key={label}
-              className={`rounded-md border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] ${
+              className={`rounded-md border px-2.5 py-1.5 font-mono text-[10px] tracking-[0.02em] ${
                 n + 1 < current || closed
                   ? "border-foreground/40 text-foreground"
                   : n + 1 === current
@@ -176,8 +176,8 @@ export function FlowConsole() {
       )}
 
       <section className="rounded-md border border-border bg-card p-4 sm:p-5">
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">1 · Incoming message</h2>
-        <p className="mt-3 rounded-md bg-secondary px-3 py-2 text-sm">“{flow.offer.rawMessage}”</p>
+        <h2 className="eyebrow">1 · Incoming message</h2>
+        <p className="keep-case mt-3 rounded-md bg-secondary px-3 py-2 text-sm">“{flow.offer.rawMessage}”</p>
         <p className="mt-1 text-xs text-muted-foreground">From: {DEMO_ACTORS.donor.name} · via WhatsApp (simulated). English: “Hi, I have 40 boxes of today’s bread. It can be picked up today from 6 to 8 pm.”</p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
@@ -189,7 +189,7 @@ export function FlowConsole() {
                     <td className="py-2 pr-3 text-muted-foreground">{FIELD_LABELS[field]}</td>
                     <td className="py-2 pr-3">{formatValue(field, f.value)}</td>
                     <td className="py-2 text-right">
-                      <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase ${STATUS_STYLE[f.status]}`}>
+                      <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] ${STATUS_STYLE[f.status]}`}>
                         {STATUS_LABEL[f.status]}
                       </span>
                     </td>
@@ -203,7 +203,7 @@ export function FlowConsole() {
 
       <section className="rounded-md border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">2 · Missing data and confirmation</h2>
+          <h2 className="eyebrow">2 · Missing data and confirmation</h2>
           <div className="flex gap-2">
             <Button size="sm" disabled={closed || flow.state !== "needs_information"} onClick={() => act((c, at) => requestInformation(c, at, 30))}>
               Ask the donor
@@ -223,7 +223,7 @@ export function FlowConsole() {
               <li key={i.id} className="rounded-md border border-border p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="text-sm">{i.question}</p>
-                  <span className="font-mono text-[10px] uppercase text-muted-foreground">
+                  <span className="font-mono text-[10px] text-muted-foreground">
                     {i.kind === "confirm" ? "confirm" : "clarify"} · {INTERACTION_STATE[i.status]} · expires {hhmm(i.expiresAt)}
                   </span>
                 </div>
@@ -272,7 +272,7 @@ export function FlowConsole() {
 
       <section className="rounded-md border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">3 · Proposed destinations</h2>
+          <h2 className="eyebrow">3 · Proposed destinations</h2>
           <Button
             size="sm"
             disabled={closed || flow.state !== "ready_to_match"}
@@ -368,7 +368,7 @@ export function FlowConsole() {
       </section>
 
       <section className="rounded-md border border-border bg-card p-4 sm:p-5">
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">4 · Human decision</h2>
+        <h2 className="eyebrow">4 · Human decision</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Decides: {DEMO_ACTORS.operator.name}. Approval places a hold on the supply; pickup and delivery are recorded separately.
         </p>
@@ -410,7 +410,7 @@ export function FlowConsole() {
       </section>
 
       <section className="rounded-md border border-border bg-card p-4 sm:p-5">
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Event log</h2>
+        <h2 className="eyebrow">Event log</h2>
         <ol className="mt-3 flex flex-col gap-1.5">
           {flow.events.map((e) => (
             <li key={e.seq} className="flex gap-3 font-mono text-[11px]">

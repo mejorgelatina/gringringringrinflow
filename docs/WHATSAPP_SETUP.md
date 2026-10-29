@@ -55,3 +55,11 @@ SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac dev | cut -d' ' -f2)
 curl -s -X POST localhost:3000/api/whatsapp/webhook -H "x-hub-signature-256: sha256=$SIG" -H 'content-type: application/json' -d "$BODY"   # → {"ok":true,"handled":1}
 curl -s localhost:3000/api/whatsapp/status   # trace with reply "preview"
 ```
+
+## Web chat and QR (built during the hackathon)
+
+- `/send` is the web version of this channel. It calls `/api/message`, which runs the same `handleInbound` handler as the webhook, so a message on the page and on WhatsApp gets the same reply. The page sends the earlier messages of the conversation along, so a short follow-up ("hasta las 6 pm") completes the offer. Web traces are withheld from the public status view like webhook traces. A per-instance cap of 20 messages per 10 minutes per IP protects model credits.
+- `/qr` prints two codes: "tengo comida para donar" and "mi organización puede recibir comida" (`?lang=en` for English).
+  - Set `GRINFLOW_WHATSAPP_NUMBER` (digits, international format, e.g. `5215512345678`) and the codes open `https://wa.me/<number>` with the first message already written.
+  - Without it, the codes open `/send?intent=give|receive`, which starts the same conversation in the browser.
+- Organizations that can receive food are read as `demand_declared`. The reply restates what was noted, asks for the first missing detail (quantity, kind of food, place, receiving hours), and says a person verifies the organization before any food is sent. Nothing is matched or booked automatically.

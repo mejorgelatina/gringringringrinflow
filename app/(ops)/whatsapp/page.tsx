@@ -54,7 +54,7 @@ export default function WhatsAppDemo() {
 
   const last = [...chat].reverse().find(b => b.trace)?.trace;
   return <main className="shell">
-    <header className="topbar"><a className="wordmark" href="/intake"><span className="mark">g</span> grinflow</a><div className="topmeta"><span className="dot"/> WHATSAPP CLOUD API · TEST NUMBER <a href="/intake" style={{marginLeft:12,color:"#087c62",fontWeight:700,textDecoration:"none"}}>WEB INTAKE ↗</a></div></header>
+    <header className="topbar"><a className="wordmark" href="/intake"><img src="/grinflow-logo.svg" alt="grinflow"/></a><div className="topmeta"><span className="dot"/> WHATSAPP CLOUD API · TEST NUMBER <a href="/intake" style={{marginLeft:12,color:"#087c62",fontWeight:700,textDecoration:"none"}}>WEB INTAKE ↗</a></div></header>
     <section className="hero"><div className="eyebrow">CHANNEL · WHATSAPP</div><h1>Donors keep<br/><em>using WhatsApp.</em></h1><p className="lede">A donor writes or sends a photo to a WhatsApp test number. The same intake pipeline drafts the offer, applies the safety gates and replies with one useful question. A person still decides.</p></section>
     <div className="warning"><span className="warning-icon">!</span><div><strong>SIMULATOR USES THE SAME HANDLER AS THE LIVE WEBHOOK</strong><p>Messages here never leave this page as WhatsApp messages. The live webhook at <code>/api/whatsapp/webhook</code> only replies when credentials are set and <code>WHATSAPP_REPLIES_ENABLED=true</code>. Model calls follow <code>META_CALLS_ENABLED</code>.</p></div></div>
 
@@ -95,6 +95,6 @@ export default function WhatsAppDemo() {
         </div>
       </div>
     </section>
-    <footer><div className="wordmark"><span className="mark">g</span> grinflow</div><p>We don’t replace existing infrastructure. We make it work together.</p><span>Setup guide: docs/WHATSAPP_SETUP.md</span></footer>
+    <footer><div className="wordmark"><img src="/grinflow-logo.svg" alt="grinflow"/></div><p>We don’t replace existing infrastructure. We make it work together.</p><span>Setup guide: docs/WHATSAPP_SETUP.md</span></footer>
   </main>;
 }
