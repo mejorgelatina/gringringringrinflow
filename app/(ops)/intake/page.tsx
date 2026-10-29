@@ -79,7 +79,7 @@ export default function Home() {
   }
   const firstEvent = result?.extraction?.events?.[0];
   return <main className="shell">
-    <header className="topbar"><a className="wordmark" href="#top"><span className="mark">g</span> grinflow</a><div className="topmeta"><span className="dot"/> META GLOBAL AI DEVELOPER HACKATHON <a href="/platform" style={{marginLeft:12,color:"#087c62",fontWeight:700,textDecoration:"none"}}>OPEN LOGISTICS PLATFORM ↗</a></div></header>
+    <header className="topbar"><a className="wordmark" href="#top"><span className="mark">g</span> grinflow</a><div className="topmeta"><span className="dot"/> META GLOBAL AI DEVELOPER HACKATHON <a href="/whatsapp" style={{marginLeft:12,color:"#087c62",fontWeight:700,textDecoration:"none"}}>WHATSAPP ↗</a><a href="/platform" style={{marginLeft:12,color:"#087c62",fontWeight:700,textDecoration:"none"}}>OPEN LOGISTICS PLATFORM ↗</a></div></header>
     <section className="hero" id="top"><div className="eyebrow">COORDINATION INTELLIGENCE · DEMO V0.2</div><h1>The infrastructure<br/><em>already exists.</em></h1><p className="lede">GrinFlow turns fragmented food-surplus messages into verifiable, human-approved rescue proposals — without replacing the tools people already use.</p><div className="hero-tags"><span>01 / Interpret</span><span>02 / Validate</span><span>03 / Coordinate</span><span>04 / Human approval</span></div></section>
     <div className="warning"><span className="warning-icon">!</span><div><strong>SYNTHETIC DATA · SIMULATED OPERATIONS</strong><p>This prototype does not contact donors, recipients, drivers or WhatsApp. No food is moved and no real-world impact is claimed.</p></div></div>
     <section className="workbench">

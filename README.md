@@ -66,11 +66,15 @@ The landing and the v0.10 screens use separate root layouts (`app/(site)`, `app/
 
 `/intake` accepts an optional photo (downscaled in the browser to ≤1024px JPEG). With real mode on, a Muse Spark vision call describes visible items, approximate counts, legible label text and visible issues, and grades the photo. `lib/meta/photo-policy.ts` then applies fixed rules: a clean-looking photo never makes food `edible`; minor issues suggest `past_prime`, severe ones (mold, rot, pests, leaks) suggest `inedible`; and a photo that contradicts an "edible" message makes condition unverified, which blocks people-tier routes until a person confirms. Without real mode the photo is accepted but not analyzed.
 
+### WhatsApp channel
+
+Donors can message a WhatsApp Cloud API test number; `/api/whatsapp/webhook` verifies Meta's signature, runs the same intake pipeline, and replies with one question in the donor's language. `/whatsapp` is a simulator that uses the exact same handler and shows a step-by-step trace, so the flow can be checked without messaging anyone. Replies are only sent with `WHATSAPP_REPLIES_ENABLED=true`. To run it with your own test number, follow [`docs/WHATSAPP_SETUP.md`](docs/WHATSAPP_SETUP.md).
+
 ### Checks
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm test        # node --test: 16 flow tests, 6 photo-policy tests, 47 v0.10.2 tests (Node 22.6+)
+pnpm test        # node --test: 16 flow tests, 17 photo/intake tests, 10 WhatsApp tests, 47 v0.10.2 tests (Node 22.6+)
 pnpm typecheck
 pnpm build
 curl -s -X POST localhost:3000/api/demo/offer-flow -d '{"decision":{"outcome":"approved"}}'
