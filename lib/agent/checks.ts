@@ -1,4 +1,4 @@
-import { evaluateCandidates } from "../engines/matching.mjs";
+import { evaluateCandidates, TIER_ORDER } from "../engines/matching.mjs";
 import type { AgentRun, Candidate } from "./types.ts";
 
 /**
@@ -56,6 +56,9 @@ export function checkProposal(run: AgentRun, recipientId: string, capacityId: st
   // Re-run the engine here rather than trusting the stored result.
   const now = (evaluateCandidates(run.supply) as Candidate[]).find(c => c.recipientId === recipientId && c.capacityId === capacityId);
   if (!now?.feasible) problems.push(`${listed.recipient} is blocked: ${(now ?? listed).blockers.map(b => b.label.toLocaleLowerCase()).join("; ")}`);
+  // The cascade is a rule, not a preference: a lower route is refused while a higher one is feasible now.
+  const higher = (evaluateCandidates(run.supply) as Candidate[]).find(c => c.feasible && TIER_ORDER.indexOf(c.tier) < TIER_ORDER.indexOf(listed.tier) && !run.rejectedPairs.includes(`${c.recipientId}+${c.capacityId}`));
+  if (higher) problems.push(`${higher.recipient} (${higher.tier}) is feasible: food for people comes before transformation, and transformation before compost`);
   if (listed.tier === "people" && run.condition?.effective !== "edible") problems.push("food for people needs a condition stated by the donor or confirmed by a person, with no doubt from the photo");
   if (rationale.length < 10 || rationale.length > 400) problems.push("the rationale must be one or two sentences (10 to 400 characters)");
   if (!quotes.length || quotes.length > 3) problems.push("cite 1 to 3 quotes from the donor");

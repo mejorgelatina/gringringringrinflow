@@ -13,6 +13,8 @@ export type IntakeDeps = {
 };
 
 export type Supply = {
+  /** What the donor called it ("huevo", "pan"); a maker matches on this, not on category. */
+  item?: string | null;
   category: string | null;
   quantity: number | null;
   quantityBasis: "stated" | "estimated" | "confirmed" | null;
@@ -55,6 +57,7 @@ export async function processIntake(message: string, image: string | undefined, 
   const extraction = deps.useMeta ? await deps.extractWithMeta(message) : deps.extractLocally(message);
   const first = extraction.events.find(e => e.kind === "supply_announced");
   const supply: Supply | null = first ? {
+    item: first.item,
     category: first.category,
     quantity: first.quantity,
     quantityBasis: first.quantity_basis,
