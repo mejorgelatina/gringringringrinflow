@@ -60,7 +60,10 @@ export function createScriptedPlanner(): Planner {
       if (run.hasPhoto && !run.photo && run.turns.length < 2) return call("assess_photo");
       if (!run.supply) return run.asks < MAX_ASKS ? call("ask_donor", { field: "offer", question: lang.offer }) : call("ask_operator", { reason: "no food offer found after asking the donor" });
       if (!run.candidates || run.candidatesVersion !== run.supplyVersion) return call("find_matches");
-      const pick = run.candidates.find(c => c.feasible && !run.rejectedPairs.includes(`${c.recipientId}+${c.capacityId}`));
+      // After a rejection, try another destination before another transport for the same one.
+      const open = run.candidates.filter(c => c.feasible && !run.rejectedPairs.includes(`${c.recipientId}+${c.capacityId}`));
+      const turnedDown = new Set(run.rejectedPairs.map(p => p.split("+")[0]));
+      const pick = open.find(c => !turnedDown.has(c.recipientId)) ?? open[0];
       if (pick) {
         const quotes = [...new Set((run.extraction?.events ?? []).map(e => e.quote))].slice(-3);
         const rationale = `${describeSupply(run.supply)} → ${pick.recipient} (${pick.tier}) with ${pick.capacity}.`;

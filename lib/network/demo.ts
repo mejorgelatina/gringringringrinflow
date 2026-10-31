@@ -82,7 +82,7 @@ export const DEMO_PARTICIPANTS: Participant[] = [
   // tier 3 · compost
   {
     id: "cmp-guerrero", name: "centro de composta guerrero", roles: ["compost"], location: { lat: 19.44, lng: -99.15 }, area: "guerrero", verified: true, whatsappOptIn: true,
-    need: { tier: "compost", categories: ["organico", "verduras", "frutas", "panificados"], conditions: ["edible", "past_prime", "inedible", "unknown"], requires: [], minKg: 2, maxKg: 500, weeklyCapacityKg: 2000, usedThisWeekKg: 400, receiving: { days: EVERY_DAY, from: H(8), to: H(18) }, selfPickup: false, selfPickupMaxMinutes: 0, notes: "recibe en planta" },
+    need: { tier: "compost", categories: ["organico", "verduras", "frutas", "panificados", "proteina"], conditions: ["edible", "past_prime", "inedible"], requires: [], minKg: 2, maxKg: 500, weeklyCapacityKg: 2000, usedThisWeekKg: 400, receiving: { days: EVERY_DAY, from: H(8), to: H(18) }, selfPickup: false, selfPickupMaxMinutes: 0, notes: "recibe en planta" },
   },
 
   // carriers and operators

@@ -1,4 +1,4 @@
-import { evaluateCandidates } from "../engines/matching.mjs";
+import { evaluateSupply } from "../network/supply.ts";
 import type { Extraction } from "../meta/types";
 import { assessPhotoLocally, PHOTO_FIXTURES, resolveCondition, routePhotoAssessment, type Condition, type ConditionEvidence, type HumanConfirmation, type ObservedCondition, type PhotoAssessment, type PhotoRouting } from "../meta/photo-policy.ts";
 
@@ -44,7 +44,7 @@ export type IntakeResult = {
   demand: Demand | null;
   photo: PhotoResult | null;
   condition: ConditionEvidence | null;
-  candidates: ReturnType<typeof evaluateCandidates>;
+  candidates: ReturnType<typeof evaluateSupply>;
   metaCalls: number;
 };
 
@@ -96,17 +96,17 @@ export async function processIntake(message: string, image: string | undefined, 
 
   const condition = supply ? resolveCondition(supply.condition, observed, null) : null;
   if (supply && condition) supply.condition = condition.effective;
-  const candidates = supply ? evaluateCandidates(supply) : [];
+  const candidates = supply ? evaluateSupply(supply, message) : [];
   return { provider, model: deps.useMeta ? deps.modelId : null, extraction, supply, demand, photo, condition, candidates, metaCalls };
 }
 
 /** Operator review after inspection. Never calls a model; keeps the model's observation alongside the decision. */
-export function confirmIntake(supply: Supply, stated: Condition, observed: ObservedCondition, human: HumanConfirmation, quantity?: number) {
+export function confirmIntake(supply: Supply, stated: Condition, observed: ObservedCondition, human: HumanConfirmation, quantity?: number, text = "") {
   const condition = resolveCondition(stated, observed, human);
   const reviewed: Supply = {
     ...supply,
     condition: condition.effective,
     ...(quantity !== undefined ? { quantity, quantityBasis: "confirmed" as const } : {})
   };
-  return { supply: reviewed, condition, candidates: evaluateCandidates(reviewed) };
+  return { supply: reviewed, condition, candidates: evaluateSupply(reviewed, text) };
 }

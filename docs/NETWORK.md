@@ -29,9 +29,16 @@ One coordination model for food banks, makers, compost operators and carriers. T
 
 All participants, places, prices and times in `demo.ts`. Courier and backhaul quotes are computed locally; no courier, WhatsApp or Meta API is called. ETAs are straight-line estimates. A routing or courier API would replace `etaMinutes` and the quote functions without changing the callers.
 
-## not yet connected
+## connected channels
 
-The intake agent (`/agent`), WhatsApp handler and `/intake` still use `lib/engines/matching.mjs`. Next step: have the agent's `find_matches` tool call `matchResource` and open a `NetworkCase` on approval.
+`/agent`, the WhatsApp handler (and `/whatsapp`, `/send`) and `/intake` call `evaluateSupply` in `lib/network/supply.ts`, so every channel answers with this engine:
+
+- the extracted supply becomes a `Resource` (place names from a small pilot gazetteer; unknown places are not guessed and give `route_unverified`; one unit ≈ one kg until a person confirms the weight; pickup window = the three hours before the donor's deadline on the demo day);
+- input gaps keep their codes (`quantity_unknown`, `quantity_estimated`, `pickup_location_unknown`, `deadline_unknown`);
+- one candidate row per destination and delivery option (`pickup`, or a vehicle id with its simulated quote and who pays);
+- compost is the agent's `valorization` route; the cascade check in `lib/agent/checks.ts` uses the same order.
+
+Behavior change from PR #10: whole spoiled eggs no longer go to the eggshell maker. Its specs require clean, dry shell with no residue, so the lot goes to compost; clean dry shell goes to the maker. A condition of `unknown` is accepted by nobody (it could still be food for people), so the agent asks the donor or an operator first. `lib/engines/matching.mjs` stays in the repo with its own tests, but no surface calls it now.
 
 ## impact zones, service areas and coverage (`coverage.ts`)
 
