@@ -41,6 +41,29 @@ export type Need = {
   notes?: string
 }
 
+/** What a generator (hotel, supermarket, restaurant) produces regularly. */
+export type ResourceStream = {
+  id: string
+  item: string
+  category: string
+  material?: string
+  condition: Condition
+  attributes: string[]
+  kgPerWeek: number
+  frequency: "diaria" | "semanal" | "eventual"
+  /** Usual pickup window, minutes after local midnight. */
+  typicalWindow: { from: number; to: number }
+}
+
+/**
+ * A generator activates a territory. Impact zone = the discovery radius around it (who could use what it
+ * generates). Whether a match is viable is still decided by eta, windows, capacity and logistics.
+ */
+export type Generator = {
+  impactRadiusKm: number
+  streams: ResourceStream[]
+}
+
 export type Participant = {
   id: string
   name: string
@@ -52,6 +75,9 @@ export type Participant = {
   /** Business-initiated whatsapp needs opt-in. */
   whatsappOptIn: boolean
   need?: Need
+  generator?: Generator
+  /** A receiver's own service area: it only wants offers from origins within this radius. */
+  serviceRadiusKm?: number
 }
 
 /** Logistics capacity. A courier quotes per trip; a route vehicle offers its spare room on a trip it is already making. */

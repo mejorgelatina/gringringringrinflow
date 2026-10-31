@@ -18,6 +18,7 @@ import {
 import { at, DEMO_NETWORK, runScenario, SCENARIO_RESOURCES, SCENARIOS } from "../lib/network/demo.ts"
 import { allocateTier, matchResource } from "../lib/network/match.ts"
 import { metrics } from "../lib/network/outcomes.ts"
+import { coverage } from "../lib/network/coverage.ts"
 import { etaMinutes, zoneFor } from "../lib/network/zones.ts"
 import type { Network, Resource } from "../lib/network/types.ts"
 
@@ -158,4 +159,32 @@ test("with no viable destination in any tier the lot is not offered at all", () 
   const m = matchResource(far, net, far.kg, far.pickupWindow.start)
   assert.equal(allocateTier(m, []), null)
   assert.equal(publish(far, net, far.pickupWindow.start).status, "no_destination")
+})
+
+test("a generator's impact zone is discovery: destinations outside it are not offered, whatever they accept", () => {
+  const m = matchResource(pan(), net, 30, at("17:00")).find((x) => x.participantId === "rec-norte")!
+  assert.ok(m.blocks.some((b) => b.code === "outside_impact_zone"))
+})
+
+test("a receiver can declare its own service area", () => {
+  const small: Network = { ...net, participants: net.participants.map((p) => (p.id === "rec-narvarte" ? { ...p, serviceRadiusKm: 1 } : p)) }
+  const m = matchResource(pan(), small, 30, at("17:00")).find((x) => x.participantId === "rec-narvarte")!
+  assert.equal(m.eligible, false)
+  assert.ok(m.blocks.some((b) => b.code === "outside_receiver_area"))
+})
+
+test("network coverage: share of generated kg with a viable route, per tier, with the reason for each gap", () => {
+  const c = coverage(net, at("00:00"))
+  assert.equal(c.totalKgPerWeek, 872)
+  assert.equal(c.pct, 83)
+  assert.equal(c.byTier.transformation, 20)
+  const merma = c.streams.find((s) => s.stream.item === "merma de frutas y verduras")!
+  assert.equal(merma.tier, null)
+  assert.match(merma.reason!, /zona de impacto/)
+  // returned eggs of unknown condition never reach people or the eggshell maker
+  const eggs = c.streams.find((s) => s.stream.id === "devoluciones")!
+  assert.equal(eggs.tier, null)
+  // widening the supermarket's impact zone reaches the compost plant
+  const wider: Network = { ...net, participants: net.participants.map((p) => (p.id === "don-super" ? { ...p, generator: { ...p.generator!, impactRadiusKm: 7 } } : p)) }
+  assert.equal(coverage(wider, at("00:00")).streams.find((s) => s.stream.id === "merma")!.tier, "compost")
 })

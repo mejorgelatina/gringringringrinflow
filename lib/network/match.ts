@@ -1,5 +1,5 @@
 import { deliveryOptions } from "./logistics.ts"
-import { etaMinutes, inServiceArea, roadKm, weeklyEnd, zoneFor } from "./zones.ts"
+import { distanceKm, etaMinutes, inServiceArea, roadKm, weeklyEnd, zoneFor } from "./zones.ts"
 import type { Block, DeliveryMode, Match, Ms, Network, Participant, Resource, Tier } from "./types.ts"
 import { TIERS } from "./types.ts"
 
@@ -16,6 +16,11 @@ export function evaluateDestination(resource: Resource, dest: Participant, netwo
 
   if (!dest.verified) block("not_verified", "Participante sin validar por grinflow.")
   if (!inServiceArea(network.area, dest.location)) block("out_of_service_area", `Fuera de ${network.area.name}.`)
+  // Discovery: the generator's impact zone and the receiver's own service area. Feasibility comes after.
+  const km = Math.round(distanceKm(resource.location, dest.location) * 10) / 10
+  const generator = network.participants.find((p) => p.id === resource.donorId)?.generator
+  if (generator && km > generator.impactRadiusKm) block("outside_impact_zone", `A ${km} km: fuera de la zona de impacto del generador (${generator.impactRadiusKm} km).`)
+  if (dest.serviceRadiusKm !== undefined && km > dest.serviceRadiusKm) block("outside_receiver_area", `A ${km} km: fuera del área de servicio que declaró (${dest.serviceRadiusKm} km).`)
 
   // Food safety first: unknown or unconfirmed condition never becomes food for people.
   if (need.tier === "people" && (resource.condition !== "edible" || !resource.conditionConfirmed)) {

@@ -32,3 +32,10 @@ All participants, places, prices and times in `demo.ts`. Courier and backhaul qu
 ## not yet connected
 
 The intake agent (`/agent`), WhatsApp handler and `/intake` still use `lib/engines/matching.mjs`. Next step: have the agent's `find_matches` tool call `matchResource` and open a `NetworkCase` on approval.
+
+## impact zones, service areas and coverage (`coverage.ts`)
+
+- **impact zone**: a generator (hotel, supermarket, restaurant, market) declares a discovery radius (`generator.impactRadiusKm`, 5 km in the demo) and its regular streams (item, condition, kg per week, frequency, usual window). Destinations outside it get `outside_impact_zone`.
+- **receiver service area**: a receiver can declare `serviceRadiusKm`; origins farther away get `outside_receiver_area`.
+- **service area (feasibility)**: unchanged. ETA zones a/b/c, windows, capacity and logistics decide whether a match is viable. The radius discovers; feasibility decides.
+- **network coverage**: `coverage(network, day)` runs every regular stream through the same engine and reports the % of generated kg/week with a viable route, kg by tier, and for each gap the closest destination that would take that material and what stops it. `/network` has a radius slider to explore it (5 km → 83%, 7 km → 97% in the demo).

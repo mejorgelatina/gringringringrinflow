@@ -10,10 +10,42 @@ const H = (h: number, m = 0) => h * 60 + m
 const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6]
 
 export const DEMO_PARTICIPANTS: Participant[] = [
-  // donors
-  { id: "don-espiga", name: "panadería la espiga", roles: ["donor"], location: { lat: 19.4194, lng: -99.1617 }, area: "roma norte", verified: true, whatsappOptIn: true },
-  { id: "don-jacaranda", name: "restaurante casa jacaranda", roles: ["donor"], location: { lat: 19.412, lng: -99.171 }, area: "condesa", verified: true, whatsappOptIn: true },
-  { id: "don-medellin", name: "mercado medellín · local 32", roles: ["donor"], location: { lat: 19.408, lng: -99.165 }, area: "roma sur", verified: true, whatsappOptIn: true },
+  // generators: each one activates an impact zone around it (discovery radius, not a feasibility rule)
+  {
+    id: "don-espiga", name: "panadería la espiga", roles: ["donor"], location: { lat: 19.4194, lng: -99.1617 }, area: "roma norte", verified: true, whatsappOptIn: true,
+    generator: { impactRadiusKm: 5, streams: [{ id: "pan", item: "pan del día", category: "panificados", condition: "edible", attributes: ["empacado"], kgPerWeek: 140, frequency: "diaria", typicalWindow: { from: H(17), to: H(19, 30) } }] },
+  },
+  {
+    id: "don-jacaranda", name: "restaurante casa jacaranda", roles: ["donor"], location: { lat: 19.412, lng: -99.171 }, area: "condesa", verified: true, whatsappOptIn: true,
+    generator: { impactRadiusKm: 5, streams: [
+      { id: "cascara", item: "cáscara de huevo", category: "organico", material: "cáscara de huevo", condition: "inedible", attributes: ["limpia", "seca", "sin residuo"], kgPerWeek: 12, frequency: "semanal", typicalWindow: { from: H(11), to: H(14) } },
+      { id: "cocina", item: "recortes de cocina", category: "organico", condition: "inedible", attributes: ["mezclado"], kgPerWeek: 70, frequency: "diaria", typicalWindow: { from: H(12), to: H(15) } },
+    ] },
+  },
+  {
+    id: "don-medellin", name: "mercado medellín · local 32", roles: ["donor"], location: { lat: 19.408, lng: -99.165 }, area: "roma sur", verified: true, whatsappOptIn: true,
+    generator: { impactRadiusKm: 5, streams: [
+      { id: "organico", item: "cáscaras mixtas de fruta y verdura", category: "organico", condition: "inedible", attributes: ["mezclado"], kgPerWeek: 245, frequency: "diaria", typicalWindow: { from: H(12, 30), to: H(15) } },
+      { id: "verdura", item: "verdura del día", category: "verduras", condition: "edible", attributes: [], kgPerWeek: 105, frequency: "diaria", typicalWindow: { from: H(14), to: H(17) } },
+    ] },
+  },
+  {
+    id: "don-hotel", name: "hotel alameda", roles: ["donor"], location: { lat: 19.4355, lng: -99.1465 }, area: "juárez", verified: true, whatsappOptIn: true,
+    generator: { impactRadiusKm: 5, streams: [
+      { id: "pan", item: "pan del desayuno", category: "panificados", condition: "edible", attributes: ["empacado"], kgPerWeek: 42, frequency: "diaria", typicalWindow: { from: H(12), to: H(15) } },
+      { id: "cascara", item: "cáscara de huevo", category: "organico", material: "cáscara de huevo", condition: "inedible", attributes: ["limpia", "seca", "sin residuo"], kgPerWeek: 8, frequency: "semanal", typicalWindow: { from: H(11), to: H(14) } },
+      { id: "cocina", item: "orgánico de cocina", category: "organico", condition: "inedible", attributes: ["mezclado"], kgPerWeek: 84, frequency: "diaria", typicalWindow: { from: H(13), to: H(16) } },
+      { id: "aceite", item: "aceite de cocina usado", category: "aceite", condition: "inedible", attributes: ["filtrado"], kgPerWeek: 10, frequency: "semanal", typicalWindow: { from: H(10), to: H(13) } },
+    ] },
+  },
+  {
+    id: "don-super", name: "súper del valle", roles: ["donor"], location: { lat: 19.389, lng: -99.163 }, area: "del valle", verified: true, whatsappOptIn: true,
+    generator: { impactRadiusKm: 5, streams: [
+      { id: "pan", item: "pan de caja por caducar", category: "panificados", condition: "edible", attributes: ["empacado"], kgPerWeek: 21, frequency: "diaria", typicalWindow: { from: H(14), to: H(18) } },
+      { id: "merma", item: "merma de frutas y verduras", category: "organico", condition: "past_prime", attributes: ["mezclado"], kgPerWeek: 120, frequency: "diaria", typicalWindow: { from: H(9), to: H(12) } },
+      { id: "devoluciones", item: "huevo devuelto en mal estado", category: "proteina", condition: "unknown", attributes: [], kgPerWeek: 15, frequency: "eventual", typicalWindow: { from: H(10), to: H(13) } },
+    ] },
+  },
 
   // tier 1 · people
   {
@@ -21,7 +53,7 @@ export const DEMO_PARTICIPANTS: Participant[] = [
     need: { tier: "people", categories: ["panificados", "frutas", "verduras", "abarrotes"], conditions: ["edible"], requires: [], minKg: 5, maxKg: 40, weeklyCapacityKg: 300, usedThisWeekKg: 120, receiving: { days: [1, 2, 3, 4, 5, 6], from: H(13), to: H(20) }, selfPickup: true, selfPickupMaxMinutes: 30, notes: "recoge con su propia camioneta" },
   },
   {
-    id: "rec-narvarte", name: "casa hogar narvarte", roles: ["receiver"], location: { lat: 19.396, lng: -99.156 }, area: "narvarte", verified: true, whatsappOptIn: true,
+    id: "rec-narvarte", name: "casa hogar narvarte", roles: ["receiver"], location: { lat: 19.396, lng: -99.156 }, area: "narvarte", verified: true, whatsappOptIn: true, serviceRadiusKm: 4,
     need: { tier: "people", categories: ["panificados", "lacteos", "abarrotes"], conditions: ["edible"], requires: [], minKg: 3, maxKg: 15, weeklyCapacityKg: 60, usedThisWeekKg: 10, receiving: { days: EVERY_DAY, from: H(12), to: H(20) }, selfPickup: false, selfPickupMaxMinutes: 0, notes: "sin vehículo; paga envío cuando le conviene" },
   },
   {

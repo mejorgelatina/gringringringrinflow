@@ -6,6 +6,7 @@ import { matchResource } from "@/lib/network/match";
 import { metrics, trackingStages } from "@/lib/network/outcomes";
 import { TIER_LABEL, TIERS, type Participant } from "@/lib/network/types";
 import { hhmm } from "@/lib/network/zones";
+import { CoverageMap } from "./coverage-map";
 import s from "./network.module.css";
 
 const NAMES = Object.fromEntries(DEMO_NETWORK.participants.map(p => [p.id, p.name]));
@@ -95,6 +96,11 @@ export default function NetworkPage() {
           <ul className={s.log}>{c.events.map(e => <li key={e.seq}>{hhmm(e.at)} · {describeEvent(e.type, e.detail)}</li>)}</ul>
         </div>
       </div>
+    </section>
+
+    <section className="section-block">
+      <div className="section-head"><div><div className="eyebrow">zonas de impacto y cobertura</div><h2>cada generador activa un territorio.</h2><p className="subhead">un hotel o un súper no es solo un usuario más: alrededor de él aparecen organizaciones, makers y composta que pueden aprovechar lo que genera. la cobertura mide qué parte de lo que se genera tiene hoy una ruta viable, y dónde están los huecos.</p></div></div>
+      <CoverageMap/>
     </section>
 
     <section className="section-block">
