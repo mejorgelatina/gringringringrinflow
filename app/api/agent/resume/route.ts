@@ -9,7 +9,7 @@ import { seal, stateSigned, unseal } from "@/lib/agent/state";
 const Action = z.discriminatedUnion("type", [
   z.object({ type: z.literal("donor_reply"), text: z.string().trim().min(1).max(2000) }),
   z.object({ type: z.literal("decision"), decision: z.enum(["approved", "rejected"]), reviewer: z.string().trim().min(2).max(80), notes: z.string().trim().max(500).default("") }),
-  z.object({ type: z.literal("inspection"), condition: z.enum(["edible", "past_prime", "inedible"]), reviewer: z.string().trim().min(2).max(80), quantity: z.number().positive().max(100000).optional(), note: z.string().trim().max(500).optional() }),
+  z.object({ type: z.literal("inspection"), condition: z.enum(["edible", "past_prime", "inedible"]), reviewer: z.string().trim().min(2).max(80), quantity: z.number().positive().max(100000).optional(), weightKg: z.number().positive().max(100000).optional(), note: z.string().trim().max(500).optional() }),
   z.object({ type: z.literal("continue") })
 ]);
 const Body = z.object({ token: z.string().min(10).max(2_000_000), action: Action });

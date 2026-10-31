@@ -2,21 +2,17 @@ import { chooseDelivery, deliveryChoices, publish, reserve } from "./coordinator
 import { DEMO_DAY, DEMO_NETWORK } from "./demo.ts"
 import { matchResource } from "./match.ts"
 import type { Block, Condition, Network, Point, Resource, Tier } from "./types.ts"
+import { characterize, planningWeight, type IccSupply } from "../icc/characterize.ts"
+import type { IccRecord } from "../icc/types.ts"
 
-// Bridge from what intake extracts (a Supply: item, category, quantity, condition, deadline, place name)
-// to the resource network. The intake agent, the whatsapp handler and /intake all call `evaluateSupply`,
+// Bridge from what intake extracts (a Supply: item, category, quantity + unit, condition, deadline, place name)
+// to the resource network. The lot's weight comes from its ICC record (lib/icc/): declared, measured, or
+// estimated from a unit reference and labelled as such. A count is never read as kilos. The intake agent, the whatsapp handler and /intake all call `evaluateSupply`,
 // so every channel answers with the same engine as /network. The candidate shape is the one those
 // surfaces already render: one row per destination and transport option, feasible or with its blockers.
 
-export type SupplyLike = {
-  item?: string | null
-  category: string | null
-  quantity: number | null
-  quantityBasis: "stated" | "estimated" | "confirmed" | null
-  condition: Condition
-  deadlineHour: number | null
-  location: string | null
-}
+/** Same shape as the ICC input: the network reads weight from the ICC record, never from a raw count. */
+export type SupplyLike = IccSupply & { condition: Condition }
 
 export type LegacyTier = "people" | "transformation" | "valorization"
 
@@ -33,6 +29,8 @@ export type Candidate = {
   costMxn: number | null
   zone: string | null
   etaMinutes: number | null
+  /** Not blocking, but shown: e.g. the weight is an estimate until someone weighs it. */
+  warnings?: { code: string; label: string }[]
 }
 
 /** Route names used by the agent and its checks. Compost is the existing "valorization" route. */
@@ -75,11 +73,18 @@ export function detectAttributes(text: string): string[] {
 
 const hour = (h: number) => Date.parse(`${DEMO_DAY}T${String(h).padStart(2, "0")}:00:00-06:00`)
 
-/** A resource for the network, or the input gaps that stop one from being built. */
-export function supplyToResource(supply: SupplyLike, text = ""): { resource: Resource | null; gaps: Block[] } {
+/** A resource for the network, or the input gaps that stop one from being built. Weight comes from ICC. */
+export function supplyToResource(supply: SupplyLike, text = "", icc?: IccRecord): { resource: Resource | null; gaps: Block[]; icc: IccRecord; warnings: Block[] } {
+  const record = icc ?? characterize({ channel: "network", text, supply })
   const gaps: Block[] = []
-  if (!Number.isFinite(supply.quantity) || (supply.quantity ?? 0) <= 0) gaps.push({ code: "quantity_unknown", message: "Quantity pending confirmation" })
-  if (supply.quantityBasis === "estimated") gaps.push({ code: "quantity_estimated", message: "Quantity is estimated; confirmation required" })
+  const warnings: Block[] = []
+  const weight = planningWeight(record)
+  const { count } = record.physical
+  if (!count && !record.physical.weightKg) gaps.push({ code: "quantity_unknown", message: "Quantity pending confirmation" })
+  if (supply.quantityBasis === "estimated" || count?.provenance === "estimado") gaps.push({ code: "quantity_estimated", message: supply.quantitySource === "foto" ? "Count read off the photo; the donor must confirm it" : "Quantity is estimated; confirmation required" })
+  if (count && !record.physical.weightKg) gaps.push({ code: "weight_unknown", message: `Weight unknown: no reference for "${count.value.unit}" of this product. Ask the donor or weigh it` })
+  else if (record.physical.weightKg && !weight) gaps.push({ code: "weight_estimated", message: "Weight is only estimated and the planning policy needs a declared or measured weight" })
+  else if (weight?.provenance === "estimado") warnings.push({ code: "weight_estimated", message: `Weight estimated ${Math.round(weight.range.min)}–${Math.round(weight.range.max)} kg (${record.physical.weightKg!.method}); confirm on a scale at handoff` })
   const point = placePoint(supply.location)
   if (!supply.location) gaps.push({ code: "pickup_location_unknown", message: "Pickup location pending confirmation" })
   else if (!point) gaps.push({ code: "route_unverified", message: `"${supply.location}" is outside the pilot area or not recognized; a person must place it` })
@@ -91,7 +96,8 @@ export function supplyToResource(supply: SupplyLike, text = ""): { resource: Res
     title: supply.item ?? supply.category ?? "lote",
     item: supply.item ?? "",
     category: supply.category ?? "",
-    kg: supply.quantity ?? 0, // demo assumption: one unit ≈ one kg until a person confirms the weight
+    kg: weight?.kg ?? 0,
+    ...(count ? { units: { count: count.value.count, unit: count.value.unit } } : {}),
     condition: supply.condition,
     conditionConfirmed: supply.condition !== "unknown",
     attributes: detectAttributes(`${supply.item ?? ""} ${text}`),
@@ -99,20 +105,26 @@ export function supplyToResource(supply: SupplyLike, text = ""): { resource: Res
     pickupWindow: { start: hour(Math.max(0, deadline - 3)), end: hour(deadline) },
     refrigerationNeeded: false,
   }
-  return { resource, gaps }
+  return { resource, gaps, icc: record, warnings }
 }
 
 /** Every destination in the network for this supply: one row per viable transport option, or one blocked row. */
 export function evaluateSupply(supply: SupplyLike, text = "", network: Network = DEMO_NETWORK): Candidate[] {
-  const { resource, gaps } = supplyToResource(supply, text)
+  const { resource, gaps, icc, warnings } = supplyToResource(supply, text)
   const r = resource!
   const at = r.pickupWindow.start
   const gapRows = gaps.map((g) => ({ code: g.code, label: g.message }))
+  const warningRows = warnings.map((w) => ({ code: w.code, label: w.message }))
+  // ICC eligibility the engine does not know about yet (e.g. perishables with no storage declared).
+  const peopleIcc = icc.eligibility.people
+  const iccPeopleBlock = peopleIcc.status === "condicionado" && supply.condition === "edible" ? [{ code: "icc_people_conditional", label: `${peopleIcc.reasons.join("; ")}: ${peopleIcc.needs.join("; ")}` }] : []
   const rows: Candidate[] = []
   for (const m of matchResource(r, network, r.kg || 1, at)) {
-    const blockers = [...gapRows, ...m.blocks.map((b) => ({ code: b.code === "not_safe_for_people" ? "condition_not_safe_for_people" : b.code, label: b.message }))]
-    if (m.eligible && r.kg > m.maxKg) blockers.push({ code: "recipient_capacity_low", label: `Can receive up to ${m.maxKg} kg; the rest is offered to others in waves` })
-    const base = { recipientId: m.participantId, recipient: m.name, tier: LEGACY[m.tier], zone: m.zone, etaMinutes: m.etaMinutes }
+    const blockers = [...gapRows, ...m.blocks.map((b) => ({ code: b.code === "not_safe_for_people" ? "condition_not_safe_for_people" : b.code, label: b.message })), ...(m.tier === "people" && m.eligible ? iccPeopleBlock : [])]
+    // A destination that can take part of the lot is still a valid proposal: it holds what it can and the
+    // rest goes to the next wave (openOperation reserves min(kg, maxKg)). This is how one lot is split.
+    const partial = m.eligible && r.kg > m.maxKg ? [{ code: "partial_capacity", label: `Takes up to ${m.maxKg} kg of ~${Math.round(r.kg)} kg; the rest is offered to the next wave` }] : []
+    const base = { recipientId: m.participantId, recipient: m.name, tier: LEGACY[m.tier], zone: m.zone, etaMinutes: m.etaMinutes, warnings: [...warningRows, ...partial] }
     const quotes = m.eligible && gaps.every((g) => g.code === "quantity_estimated") ? optionsFor(r, m.participantId, network) : []
     if (!quotes.length) {
       rows.push({ ...base, capacityId: "none", capacity: "no transport option evaluated", routeKm: null, routeSource: "unverified", feasible: false, blockers: blockers.length ? blockers : [{ code: "no_logistics", label: "No viable way to move it in time" }], costMxn: null })
@@ -144,6 +156,8 @@ function optionsFor(resource: Resource, participantId: string, network: Network)
 export type OperationSummary = {
   recipientId: string
   kg: number
+  /** How the held kg is known. An estimate stays labelled until the handoff or receipt measures it. */
+  kgProvenance: string
   remainingKg: number
   mode: "pickup" | "courier" | "backhaul"
   costMxn: number
@@ -161,7 +175,7 @@ export type OperationSummary = {
  * to accept the cost and the carrier to confirm capacity. Nothing is dispatched.
  */
 export function openOperation(supply: SupplyLike, text: string, recipientId: string, capacityId: string, network: Network = DEMO_NETWORK): OperationSummary | null {
-  const { resource, gaps } = supplyToResource(supply, text)
+  const { resource, gaps, icc } = supplyToResource(supply, text)
   if (!resource || gaps.length) return null
   const at = resource.pickupWindow.start
   let c = publish(resource, network, at)
@@ -178,7 +192,7 @@ export function openOperation(supply: SupplyLike, text: string, recipientId: str
   const r = c.reservations[0]
   const clock = (ms: number | null) => (ms === null ? null : new Date(ms - 6 * 3600_000).toISOString().slice(11, 16))
   return {
-    recipientId, kg: r.kg, remainingKg: resource.kg - r.kg, mode, costMxn: r.quote!.costMxn, status: r.status, handoffCode: r.handoffCode,
+    recipientId, kg: r.kg, kgProvenance: icc.physical.weightKg?.provenance ?? "desconocido", remainingKg: resource.kg - r.kg, mode, costMxn: r.quote!.costMxn, status: r.status, handoffCode: r.handoffCode,
     holdUntil: clock(r.holdUntil),
     nextStep: mode === "pickup" ? `pickup code ${r.handoffCode}; the receiver collects it` : `the receiver accepts $${r.quote!.costMxn} mxn, then the carrier confirms capacity`,
     notified: c.waves.flatMap((w) => w.notified),
