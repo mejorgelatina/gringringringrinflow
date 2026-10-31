@@ -1,0 +1,23 @@
+.card{background:var(--gf-surface);border:1px solid var(--gf-line);border-radius:var(--gf-radius-lg);padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.head h3{font:700 16px var(--gf-font-display);margin:0}
+.meta{font:11px var(--gf-font-mono);color:var(--gf-muted)}
+.dims{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.dim{background:var(--gf-surface-sunken);border-radius:var(--gf-radius-md);padding:10px 12px;min-width:0}
+.dim h4{font:600 11px var(--gf-font-mono);letter-spacing:var(--gf-tracking-label);color:var(--gf-muted);margin:0 0 6px}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font:13px/1.4 var(--gf-font-sans);padding:3px 0}
+.row span:first-child{color:var(--gf-ink-soft)}
+.val{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;justify-content:flex-end;text-align:right}
+.chip{font:600 10px var(--gf-font-mono);border-radius:var(--gf-radius-pill);padding:1px 7px;border:1px solid var(--gf-line-strong);color:var(--gf-ink-soft);white-space:nowrap}
+.declarado{background:var(--gf-info-bg);border-color:transparent;color:var(--gf-info)}
+.estimado{background:var(--gf-warn-bg);border-color:var(--gf-warn-line);color:var(--gf-warn)}
+.medido,.verificado{background:var(--gf-success-bg);border-color:transparent;color:var(--gf-success)}
+.method{display:block;font:11px/1.35 var(--gf-font-sans);color:var(--gf-muted);margin-top:2px}
+.list{margin:0;padding-left:16px;font:13px/1.45 var(--gf-font-sans);color:var(--gf-ink-soft)}
+.elig{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.dest{border:1px solid var(--gf-line);border-radius:var(--gf-radius-md);padding:8px 10px;font:12px/1.4 var(--gf-font-sans);color:var(--gf-ink-soft)}
+.dest strong{display:flex;justify-content:space-between;font:600 13px var(--gf-font-sans);color:var(--gf-ink);margin-bottom:2px}
+.elegible{border-color:var(--gf-green-300);background:var(--gf-green-50)}
+.no_elegible{opacity:.75}
+.score{font:12px/1.4 var(--gf-font-mono);color:var(--gf-muted);border-top:1px dashed var(--gf-line);padding-top:10px}
+.label{font:600 11px var(--gf-font-mono);letter-spacing:var(--gf-tracking-label);color:var(--gf-muted);margin:0 0 4px}

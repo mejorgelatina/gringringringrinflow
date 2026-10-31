@@ -288,3 +288,27 @@ export function countFromPhoto<S extends IccSupply>(supply: S, photo: IccPhoto |
   const unit = /caja|box/i.test(pack) ? "caja" : /contenedor|container|tray|charola/i.test(pack) ? "contenedor" : /costal|sack|bag|bolsa/i.test(pack) ? "costal" : "unidad"
   return { ...supply, quantity: count, unit, quantityBasis: "estimated", quantitySource: "foto" }
 }
+
+/**
+ * A lot that is already in the network (e.g. the /network scenarios) as an ICC record. Its kg are what the
+ * donor declared; once receivers confirm receipt, the received kg are the measured weight.
+ */
+export function characterizeResource(
+  resource: { item: string; category: string; material?: string; kg: number; units?: { count: number; unit: string }; condition: Condition; conditionConfirmed: boolean; attributes: string[]; rawMessage?: string },
+  received?: { kg: number; by: string; at: string } | null,
+  now?: () => string,
+): IccRecord {
+  const text = resource.rawMessage ?? `${resource.kg} kg de ${resource.item}${resource.units ? `, ${resource.units.count} ${resource.units.unit}` : ""}${resource.attributes.length ? `, ${resource.attributes.join(", ")}` : ""}`
+  return characterize({
+    channel: "network",
+    text,
+    supply: {
+      item: resource.item, category: resource.category, quantity: resource.kg, unit: "kg", quantityBasis: "stated", quantitySource: "texto",
+      condition: resource.conditionConfirmed ? resource.condition : "unknown", deadlineHour: 0, location: "red",
+      measuredKg: received ? { kg: received.kg, provenance: "medido", by: received.by, at: received.at } : null,
+    },
+    attributes: resource.attributes,
+    material: resource.material ?? null,
+    now,
+  })
+}

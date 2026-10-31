@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import type { IccRecord } from "@/lib/icc/types";
+import { IccCard } from "../icc/icc-card";
 
 type Step = { at: string; step: string; detail: string };
-type Trace = { id: string; source: "webhook" | "simulator"; from: string; receivedAt: string; steps: Step[]; reply: string | null; replyStatus: "sent" | "preview" | "failed" | "none"; metaCalls: number; intake: { provider: string; feasible: number; blocked: number; condition: { effective: string; peopleRouteBlocked: boolean } | null } | null };
+type Trace = { id: string; source: "webhook" | "simulator"; from: string; receivedAt: string; steps: Step[]; reply: string | null; replyStatus: "sent" | "preview" | "failed" | "none"; metaCalls: number; intake: { provider: string; feasible: number; blocked: number; condition: { effective: string; peopleRouteBlocked: boolean } | null; icc?: IccRecord | null } | null };
 type Config = { verifyTokenSet: boolean; appSecretSet: boolean; accessTokenSet: boolean; phoneNumberIdSet: boolean; repliesEnabled: boolean; allowlistSet: boolean; metaCallsEnabled: boolean; firebaseSet?: boolean };
 type Bubble = { who: "donor" | "grinflow"; text: string; image?: string; trace?: Trace };
 
@@ -84,6 +86,7 @@ export default function WhatsAppDemo() {
           {!last ? <p className="subhead">Each step of the handler appears here: validation, model or fallback, safety gate, matching, reply.</p> :
             <ol className="wa-trace">{last.steps.map((s, i) => <li key={i}><strong>{s.step}</strong><span>{s.detail}</span></li>)}</ol>}
         </div>
+        {last?.intake?.icc && <IccCard icc={last.intake.icc} title="icc · this message"/>}
         <div className="section-block"><div className="eyebrow">LIVE SETUP ON THIS DEPLOYMENT</div>
           {config ? <ul className="wa-config">{([
             ["Verify token", config.verifyTokenSet], ["App secret (signature check)", config.appSecretSet], ["Access token", config.accessTokenSet], ["Phone number ID", config.phoneNumberIdSet], ["Replies enabled", config.repliesEnabled], ["Sender allowlist", config.allowlistSet], ["Meta model calls", config.metaCallsEnabled], ["Firestore (durable storage)", Boolean(config.firebaseSet)]

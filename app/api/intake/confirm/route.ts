@@ -8,7 +8,9 @@ const Body = z.object({
     item: z.string().max(200).nullable().optional(),
     category: z.string().nullable(),
     quantity: z.number().nonnegative().nullable(),
+    unit: z.string().max(40).nullable().optional(),
     quantityBasis: z.enum(["stated", "estimated", "confirmed"]).nullable(),
+    quantitySource: z.enum(["texto", "foto", "operador"]).nullable().optional(),
     condition: ConditionEnum,
     deadlineHour: z.number().int().min(0).max(23).nullable(),
     location: z.string().max(200).nullable()
@@ -21,6 +23,8 @@ const Body = z.object({
     note: z.string().trim().max(500).optional()
   }),
   quantity: z.number().positive().max(100000).optional(),
+  /** Weight a person checked on site; recorded as "verificado" in ICC. */
+  weightKg: z.number().positive().max(100000).optional(),
   // The donor's words, so material specs (clean, dry…) still count after review.
   message: z.string().max(4000).optional()
 });
@@ -30,8 +34,8 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_request", message: "A reviewer name and a confirmed condition are required." }, { status: 400 });
-  const { supply, stated, observed, confirmation, quantity, message } = parsed.data;
+  const { supply, stated, observed, confirmation, quantity, weightKg, message } = parsed.data;
   const at = new Date().toISOString();
-  const result = confirmIntake(supply, stated, observed, { ...confirmation, at }, quantity, message ?? "");
-  return NextResponse.json({ ok: true, ...result, audit: { reviewer: confirmation.reviewer, at, decision: confirmation.condition, quantity: quantity ?? null, modelObservation: observed } });
+  const result = confirmIntake(supply, stated, observed, { ...confirmation, at }, quantity, message ?? "", weightKg);
+  return NextResponse.json({ ok: true, ...result, audit: { reviewer: confirmation.reviewer, at, decision: confirmation.condition, quantity: quantity ?? null, weightKg: weightKg ?? null, modelObservation: observed } });
 }
