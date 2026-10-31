@@ -55,4 +55,6 @@ export type AgentRun = {
   turnLimit: number;
   metaCalls: number;
   note: string | null;
+  /** Opened in the resource network after sign-off: hold, delivery choice, handoff code. Simulated. */
+  operation?: import("../network/supply.ts").OperationSummary | null;
 };

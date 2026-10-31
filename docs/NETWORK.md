@@ -46,3 +46,5 @@ Behavior change from PR #10: whole spoiled eggs no longer go to the eggshell mak
 - **receiver service area**: a receiver can declare `serviceRadiusKm`; origins farther away get `outside_receiver_area`.
 - **service area (feasibility)**: unchanged. ETA zones a/b/c, windows, capacity and logistics decide whether a match is viable. The radius discovers; feasibility decides.
 - **network coverage**: `coverage(network, day)` runs every regular stream through the same engine and reports the % of generated kg/week with a viable route, kg by tier, and for each gap the closest destination that would take that material and what stops it. `/network` has a radius slider to explore it (5 km → 83%, 7 km → 97% in the demo).
+
+After sign-off, the agent opens the operation in the network (`openOperation` in `supply.ts`): the destination holds the lot, the delivery choice is recorded, and pickup gets a handoff code shown in `/track`. For agent runs, receiver cost acceptance, carrier confirmation and receipt are not interactive yet; `/network` walks that part.

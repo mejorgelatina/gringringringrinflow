@@ -239,3 +239,13 @@ test("AG-N1: the agent answers with the network engine: delivery options carry w
   const far = await startRun("Tenemos 20 cajas de pan fresco en la colonia Polanco, recoger antes de las 6 pm.", undefined, offline(), createScriptedPlanner())
   assert.ok(far.candidates?.every(c => !c.feasible && c.blockers.some(b => b.code === "route_unverified")))
 })
+
+test("AG-N2: sign-off opens the operation in the network: hold, delivery choice and handoff code", async () => {
+  const run = await startRun(BREAD, undefined, offline(), createScriptedPlanner())
+  const done = await resumeRun(run, { type: "decision", decision: "approved", reviewer: "ana", notes: "" }, offline(), createScriptedPlanner())
+  assert.equal(done.operation?.recipientId, "rec-doctores")
+  assert.equal(done.operation?.mode, "pickup")
+  assert.equal(done.operation?.costMxn, 0)
+  assert.match(done.operation?.handoffCode ?? "", /^\d{4}$/)
+  assert.match(done.turns.at(-1)!.summary, /pickup code/)
+})

@@ -1,4 +1,4 @@
-import { deliveryChoices, publish } from "./coordinator.ts"
+import { chooseDelivery, deliveryChoices, publish, reserve } from "./coordinator.ts"
 import { DEMO_DAY, DEMO_NETWORK } from "./demo.ts"
 import { matchResource } from "./match.ts"
 import type { Block, Condition, Network, Point, Resource, Tier } from "./types.ts"
@@ -139,4 +139,48 @@ function optionsFor(resource: Resource, participantId: string, network: Network)
   const c = publish(resource, network, resource.pickupWindow.start)
   const res = { ...c, reservations: [{ id: "probe", participantId, tier: "people" as const, kg: resource.kg, createdAt: resource.pickupWindow.start, holdUntil: null, status: "held" as const, quote: null, quoteAcceptedAt: null, capacityConfirmedAt: null, handoffCode: null, pickedUpAt: null, receivedKg: null, receivedAt: null, stopReason: null }] }
   return deliveryChoices(res, network, "probe", resource.pickupWindow.start)
+}
+
+export type OperationSummary = {
+  recipientId: string
+  kg: number
+  remainingKg: number
+  mode: "pickup" | "courier" | "backhaul"
+  costMxn: number
+  status: string
+  handoffCode: string | null
+  holdUntil: string | null
+  nextStep: string
+  notified: string[]
+}
+
+/**
+ * After an operator approves the agent's proposal: open the operation in the network. The proposed
+ * destination holds the lot (partially, if it can't take it all) and the chosen delivery is recorded.
+ * Pickup is confirmed at once with a handoff code; a courier or backhaul still waits for the receiver
+ * to accept the cost and the carrier to confirm capacity. Nothing is dispatched.
+ */
+export function openOperation(supply: SupplyLike, text: string, recipientId: string, capacityId: string, network: Network = DEMO_NETWORK): OperationSummary | null {
+  const { resource, gaps } = supplyToResource(supply, text)
+  if (!resource || gaps.length) return null
+  const at = resource.pickupWindow.start
+  let c = publish(resource, network, at)
+  if (!c.waves.some((w) => w.notified.includes(recipientId))) {
+    c = { ...c, waves: [...c.waves, { n: c.waves.length + 1, tier: c.activeTier ?? "people", at, notified: [recipientId] }] }
+  }
+  const match = matchResource(resource, network, resource.kg, at).find((m) => m.participantId === recipientId)
+  if (!match?.eligible) return null
+  c = reserve(c, network, recipientId, Math.min(resource.kg, match.maxKg), at)
+  const id = c.reservations[0].id
+  const vehicle = network.vehicles.find((v) => v.id === capacityId)
+  const mode = capacityId === "pickup" ? "pickup" : vehicle?.kind === "route" ? "backhaul" : "courier"
+  c = chooseDelivery(c, network, id, mode, at, vehicle?.id ?? null)
+  const r = c.reservations[0]
+  const clock = (ms: number | null) => (ms === null ? null : new Date(ms - 6 * 3600_000).toISOString().slice(11, 16))
+  return {
+    recipientId, kg: r.kg, remainingKg: resource.kg - r.kg, mode, costMxn: r.quote!.costMxn, status: r.status, handoffCode: r.handoffCode,
+    holdUntil: clock(r.holdUntil),
+    nextStep: mode === "pickup" ? `pickup code ${r.handoffCode}; the receiver collects it` : `the receiver accepts $${r.quote!.costMxn} mxn, then the carrier confirms capacity`,
+    notified: c.waves.flatMap((w) => w.notified),
+  }
 }

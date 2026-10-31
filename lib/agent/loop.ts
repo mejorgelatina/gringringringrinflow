@@ -3,6 +3,7 @@ import type { Planner } from "./planner.ts";
 import { trackingCode } from "./tracking.ts";
 import { runTool, type AgentDeps, type ToolResult } from "./tools.ts";
 import type { AgentRun, Turn } from "./types.ts";
+import { openOperation } from "../network/supply.ts";
 
 /**
  * The intake agent loop. Each turn the planner picks one tool, code runs it (with its checks),
@@ -96,7 +97,10 @@ export async function resumeRun(run: AgentRun, action: ResumeAction, deps: Agent
       run.review = { decision: action.decision, reviewer: action.reviewer, notes: action.notes, at };
       if (action.decision === "approved") {
         run.status = "approved";
-        logTurn(run, { tool: "operator", args: { decision: "approved" }, outcome: "stopped", summary: `approved by ${action.reviewer} · simulated, nothing dispatched` });
+        run.operation = run.supply ? openOperation(run.supply, run.donorTexts.join("\n"), run.proposal.recipientId, run.proposal.capacityId) : null;
+        const op = run.operation;
+        const opText = op ? ` · ${op.kg} kg held for ${run.proposal.recipient}${op.remainingKg > 0 ? ` (${op.remainingKg} kg offered to others)` : ""} · ${op.nextStep}` : "";
+        logTurn(run, { tool: "operator", args: { decision: "approved" }, outcome: "stopped", summary: `approved by ${action.reviewer}${opText} · simulated, nothing dispatched` });
         return run;
       }
       run.rejectedPairs.push(`${run.proposal.recipientId}+${run.proposal.capacityId}`);
