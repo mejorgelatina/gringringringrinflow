@@ -57,5 +57,29 @@ GrinFlow es una capa de inteligencia logística que conecta **oferta, demanda, c
 - carga administrativa por operación;
 - incidentes de seguridad y consentimiento.
 
+## Flujo operativo a una mano
+La operación se adapta a las manos del operador, no el operador a la interfaz. Registrar un excedente debe ser lo que ya se hace: tomar una foto, hablar y seguir trabajando.
+
+1. **Capturar:** una foto o una nota de voz.
+2. **Interpretar:** productos, cantidades aparentes, contexto y datos disponibles.
+3. **Evaluar:** ICC (índice de calidad compuesto) construye una evaluación preliminar con evidencia y nivel de confianza.
+4. **Resolver:** el sistema pregunta únicamente lo que no puede determinar.
+5. **Registrar:** el registro estructurado entra a la red.
+
+Menos fricción no significa menos rigor: el sistema distingue lo observado, lo declarado, lo estimado y lo verificado. Una imagen no demuestra temperatura, historial de conservación ni inocuidad. ICC no inventa certeza para que la experiencia sea rápida.
+
+> El mejor software operativo es el que nunca interrumpe la operación.
+
+### Métricas de ingesta
+El objetivo de menos de diez segundos es para captura y primera estructuración, no para completar todas las verificaciones.
+
+| métrica | qué mide |
+| --- | --- |
+| Time to Capture | tiempo para tomar la foto o grabar el audio |
+| Time to Structured Resource | tiempo hasta generar el registro estructurado |
+| Time to Actionable Resource | tiempo hasta tener información suficiente para evaluar una acción |
+| Human Correction Rate | porcentaje de registros que requieren corrección |
+| Completion Without Typing | registros completados sin escribir manualmente |
+
 ## Posicionamiento
 No vendemos “otra app para coordinar donaciones”. Construimos inteligencia de red sobre los canales y activos que ya existen, comenzando por estructurar mensajes y reducir coordinación manual; después conectamos demanda y logística; finalmente optimizamos la capacidad ociosa de toda la red.

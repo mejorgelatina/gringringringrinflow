@@ -33,8 +33,8 @@ All participants, places, prices and times in `demo.ts`. Courier and backhaul qu
 
 `/agent`, the WhatsApp handler (and `/whatsapp`, `/send`) and `/intake` call `evaluateSupply` in `lib/network/supply.ts`, so every channel answers with this engine:
 
-- the extracted supply becomes a `Resource` (place names from a small pilot gazetteer; unknown places are not guessed and give `route_unverified`; one unit ≈ one kg until a person confirms the weight; pickup window = the three hours before the donor's deadline on the demo day);
-- input gaps keep their codes (`quantity_unknown`, `quantity_estimated`, `pickup_location_unknown`, `deadline_unknown`);
+- the extracted supply is characterized with ICC first (`lib/icc/`, `docs/ICC.md`), then becomes a `Resource` (place names from a small pilot gazetteer; unknown places are not guessed and give `route_unverified`; **kg come from the ICC weight**: declared, measured, verified, or estimated from a unit reference and labelled `estimado`, never a raw count; pickup window = the three hours before the donor's deadline on the demo day);
+- input gaps keep their codes (`quantity_unknown`, `quantity_estimated`, `weight_unknown`, `pickup_location_unknown`, `deadline_unknown`); an estimated weight is a warning (`weight_estimated`), not a blocker, per `PLANNING_POLICY` in `lib/icc/spec.ts`; a destination that can take only part of the lot is a warning (`partial_capacity`): it holds what it can and the rest goes to the next wave;
 - one candidate row per destination and delivery option (`pickup`, or a vehicle id with its simulated quote and who pays);
 - compost is the agent's `valorization` route; the cascade check in `lib/agent/checks.ts` uses the same order.
 

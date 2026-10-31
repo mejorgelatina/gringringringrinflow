@@ -11,12 +11,16 @@ const fmt = (r: Range, digits = 0) => {
 const COND: Record<string, string> = { edible: "apto (declarado)", past_prime: "pasado de punto", inedible: "no comestible", unknown: "sin confirmar" };
 const DEST: Record<string, string> = { people: "personas", transformation: "transformación", compost: "composta" };
 const STATUS: Record<string, string> = { elegible: "elegible", condicionado: "condicionado", no_elegible: "no elegible" };
+const VISUAL: Record<string, string> = { "no visible issues": "sin daño visible", "minor visible issues": "daño menor visible", "severe visible issues": "daño grave visible", "unclear photo": "foto poco clara" };
+const plural = (n: number, u: string) => (n === 1 || u === "kg" ? u : /[aeiou]$/.test(u) ? `${u}s` : `${u}es`);
 const FIELD: Record<string, string> = { quantity: "cantidad", weight: "peso", category: "categoría", location: "lugar de recolección", deadline_hour: "hora límite", condition: "condición", storage: "almacenamiento", material_specs: "especificaciones del material" };
 
 function Value<T>({ label, a, show }: { label: string; a: Assessed<T> | null; show: (v: T) => string }) {
+  // "unknown" with no evidence has no provenance worth a chip: nobody said anything yet
+  const chip = a && !(a.value === "unknown" && a.evidence.length === 0);
   return <div className={s.row}>
     <span>{label}</span>
-    {a ? <span className={s.val}><span className="keep-case">{show(a.value)}</span><span className={`${s.chip} ${s[a.provenance]}`}>{a.provenance}</span></span> : <span className={s.val}>desconocido</span>}
+    {a ? <span className={s.val}><span className="keep-case">{show(a.value)}</span>{chip && <span className={`${s.chip} ${s[a.provenance]}`}>{a.provenance}</span>}</span> : <span className={s.val}>desconocido</span>}
   </div>;
 }
 
@@ -29,7 +33,7 @@ export function IccCard({ icc, title = "icc · índice de calidad compuesto" }: 
   const p = icc.physical, q = icc.quality, r = icc.risk;
   const tookMs = Date.parse(icc.structuredAt) - Date.parse(icc.receivedAt);
   return <div className={s.card}>
-    <div className={s.head}><h3>{title}</h3><span className={s.meta}>{icc.spec} · canal {icc.channel}{Number.isFinite(tookMs) && tookMs >= 0 ? ` · estructurado en ${(tookMs / 1000).toFixed(1)} s` : ""}</span></div>
+    <div className={s.head}><h3>{title}</h3><span className={s.meta}>{icc.spec} · canal {icc.channel}{icc.channel !== "network" && Number.isFinite(tookMs) && tookMs >= 0 ? ` · estructurado en ${(tookMs / 1000).toFixed(1)} s` : ""}</span></div>
     <div className={s.dims}>
       <div className={s.dim}><h4>producto</h4>
         <div className={s.row}><span>qué es</span><span className={`${s.val} keep-case`}>{icc.product.item ?? "—"}</span></div>
@@ -38,12 +42,12 @@ export function IccCard({ icc, title = "icc · índice de calidad compuesto" }: 
       </div>
       <div className={s.dim}><h4>calidad</h4>
         <Value label="condición" a={q.condition} show={v => COND[v] ?? v}/><Method a={q.condition}/>
-        <Value label="foto" a={q.visual} show={v => v}/>
+        <Value label="foto" a={q.visual} show={v => VISUAL[v] ?? v}/>
         <Value label="almacenamiento" a={q.storage} show={v => v}/>
         <div className={s.row}><span>vida útil</span><span className={s.val}>sin estimar</span></div>
       </div>
       <div className={s.dim}><h4>físico</h4>
-        <Value label="conteo" a={p.count} show={v => `${v.count} ${v.unit}`}/>
+        <Value label="conteo" a={p.count} show={v => `${p.count?.provenance === "estimado" ? "~" : ""}${v.count} ${plural(v.count, v.unit)}`}/>
         <Value label="peso" a={p.weightKg} show={v => `${p.weightKg?.provenance === "estimado" ? "~" : ""}${fmt(v)} kg`}/><Method a={p.weightKg}/>
         <Value label="volumen" a={p.volumeM3} show={v => `~${fmt(v, 2)} m³`}/>
       </div>

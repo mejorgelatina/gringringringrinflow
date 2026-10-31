@@ -59,9 +59,10 @@ export function composite(record: Omit<IccRecord, "composite">): CompositeIndex 
     { dimension: "physical", signal: "peso", value: record.physical.weightKg ? `${fmtRange(record.physical.weightKg.value)} kg · ${record.physical.weightKg.provenance}` : "desconocido" },
     { dimension: "physical", signal: "volumen", value: record.physical.volumeM3 ? `${fmtRange(record.physical.volumeM3.value, 2)} m³ · ${record.physical.volumeM3.provenance}` : "desconocido" },
   ]
-  const unset = Object.entries(ICC_WEIGHTS).filter(([, w]) => w === null).map(([k]) => k)
+  const ES: Record<string, string> = { product: "producto", quality: "calidad", risk: "riesgo", physical: "físico" }
+  const unset = Object.entries(ICC_WEIGHTS).filter(([, w]) => w === null).map(([k]) => ES[k])
   return unset.length
-    ? { score: null, status: "pendiente_especificacion", reason: `sin puntaje: faltan las ponderaciones de ${unset.join(", ")} en la especificación (docs/ICC.md)`, components }
+    ? { score: null, status: "pendiente_especificacion", reason: `faltan las ponderaciones de ${unset.join(", ")} en la especificación (docs/ICC.md); no se inventan`, components }
     : { score: null, status: "pendiente_especificacion", reason: "ponderaciones definidas, pero la fórmula y las escalas por componente aún no están especificadas", components }
 }
 
