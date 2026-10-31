@@ -16,6 +16,7 @@ Everything below was built during the event. The git history shows it: every com
 | Return-trip (backhaul) preview | `/backhaul`, `lib/backhaul/` | #6 |
 | Muse Spark intake agent (tool loop, checks it can't skip, operator sign-off) and parcel-style tracking | `/agent`, `/track`, `lib/agent/` | #8 |
 | Three routes for a lot: food for people, material transformation by a maker (demo: eggshell → biomaterials, for supermarket returns and merma), compost / responsible disposal. The cascade is a code rule in the agent | `lib/engines/matching.mjs`, `lib/agent/checks.ts`, `/agent` ("supermarket returns") | #10 |
+| One resource network: participants (orgs, makers, compost, carriers) in one registry, operational zones by ETA, eligibility before ranking, the people → transformation → compost cascade, notification waves, partial holds that expire, receiver-chosen delivery (free pickup, quoted courier, backhaul; simulated quotes), handoff codes, verified receipt and impact by route. Three end-to-end demo scenarios | `/network`, `lib/network/`, `docs/NETWORK.md` | #11 |
 | Optional Firestore persistence: WhatsApp messages and durable webhook dedupe (first draft written with Manus, an outside AI agent, then reviewed here), tracking numbers | `lib/firebase/`, `lib/agent/registry.ts` | #9 |
 
 The v0.10.x engines and documents were written by the team in a separate workspace during the event and imported in PRs #2 and #3. Some planning notes in `docs/v0.10/` are dated Oct 24–25: they are pre-event preparation (ideas and plans, no code).
@@ -66,6 +67,7 @@ This repo now carries the v0.10.2 package (English edition) (engines, console, d
 | `/demo/flow` | Offer → missing data → confirmation → proposals → route review → human decision (`/demo/flujo` redirects here) |
 | `/intake` | Message and photo intake, photo safety check, human review, matching and decision |
 | `/whatsapp` | WhatsApp simulator running the live webhook handler, with step traces |
+| `/network` | One network, three destinations: bread → community kitchen, eggshell → maker, mixed organic → compost, step by step with WhatsApp messages, tracking and verified impact (synthetic) |
 | `/backhaul` | Return-trip opportunities for a van that just delivered (synthetic) |
 | `/platform` | v0.10 logistics console (browser-local synthetic data) |
 | `POST /api/demo/offer-flow` | The full loop in memory. Body optional: `answers`, `reviewRouteIndex`, `decision`, `offer`, `destinations`, `vehicles` |
