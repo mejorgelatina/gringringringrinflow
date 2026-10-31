@@ -181,3 +181,39 @@ test("TR-03: a question to the donor and a handoff show as waiting, not as progr
   assert.equal(t2.headline, "with an operator")
   assert.equal(t2.stages.find(s => s.key === "condition")?.state, "waiting")
 })
+
+test("AG-T1: spoiled supermarket eggs go to the eggshell maker, not to people and not to compost", async () => {
+  const msg = "Somos el súper de la colonia Roma: tenemos 30 cajas de huevos echados a perder por devoluciones, recoger antes de las 6 pm"
+  const run = await startRun(msg, undefined, offline(), createScriptedPlanner())
+  assert.equal(run.supply?.condition, "inedible")
+  assert.equal(run.status, "awaiting_approval")
+  assert.equal(run.proposal?.tier, "transformation")
+  assert.equal(run.proposal?.recipientId, "recip-m")
+  assert.ok(run.candidates?.filter(c => c.tier === "people").every(c => !c.feasible))
+})
+
+test("AG-T2: the cascade is enforced in code: compost is refused while a maker or people route is feasible", async () => {
+  const eggs = "Tenemos 30 cajas de huevos echados a perder en la colonia Roma, recoger antes de las 6 pm"
+  const planner = scripted([
+    call("extract_event"),
+    call("find_matches"),
+    call("propose_match", { recipientId: "recip-m", capacityId: "cap-a", rationale: "30 cajas de huevos para el taller.", quotes: ["30 cajas de huevos"] }),
+  ])
+  const run = await startRun(eggs, undefined, offline(), planner)
+  assert.equal(run.proposal?.tier, "transformation")
+
+  const bread = scripted([
+    call("extract_event"),
+    call("find_matches"),
+    call("propose_match", { recipientId: "recip-c", capacityId: "cap-a", rationale: "20 cajas de pan a composta.", quotes: ["20 cajas de pan"] }),
+  ])
+  const refused = await startRun(BREAD, undefined, offline(), bread)
+  assert.equal(refused.proposal, null)
+  assert.ok(refused.turns.some(t => t.outcome === "refused" && /food for people comes before/.test(t.summary)))
+})
+
+test("AG-T3: a maker only takes its material: spoiled chicken is not sent to the eggshell studio", async () => {
+  const run = await startRun("Tenemos 10 cajas de pollo echado a perder en la colonia Roma, recoger antes de las 6 pm", undefined, offline(), createScriptedPlanner())
+  assert.ok(run.candidates?.filter(c => c.recipientId === "recip-m").every(c => c.blockers.some(b => b.code === "material_not_accepted")))
+  assert.notEqual(run.proposal?.tier, "transformation")
+})

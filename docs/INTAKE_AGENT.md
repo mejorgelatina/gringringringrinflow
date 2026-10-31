@@ -13,9 +13,21 @@ Each turn the planner calls exactly one tool. Code runs it, and the result goes 
 | `find_matches` | Runs the deterministic engine (`evaluateCandidates`) | The model never ranks or overrides a blocker |
 | `ask_donor` | Asks one question; run stops at `needs_input` with no model calls | Only for a field that is actually missing or uncertain; at most 2 per run; a photo doubt can't be settled by the donor |
 | `ask_operator` | Hands off; run stops at `escalated` | Only after `find_matches` found nothing feasible, or when a photo raised a doubt |
-| `propose_match` | Ends at `awaiting_approval` | Code rules (pair from the latest `find_matches`, still feasible when re-run, people tier needs effective `edible`, not a pair the operator rejected, every quote is in the donor's words), then a **claims check**: a separate Muse Spark call (`lib/agent/judge.ts`) that refuses a rationale saying more than its quotes. 3 refusals → operator |
+| `propose_match` | Ends at `awaiting_approval` | Code rules (pair from the latest `find_matches`, still feasible when re-run, people tier needs effective `edible`, the route cascade (no transformation while a people pair is feasible, no compost while a people or transformation pair is feasible), not a pair the operator rejected, every quote is in the donor's words), then a **claims check**: a separate Muse Spark call (`lib/agent/judge.ts`) that refuses a rationale saying more than its quotes. 3 refusals → operator |
 
 The operator approves (simulated, nothing dispatched), rejects with notes (notes go back to the agent), or records an inspection (condition and quantity), which reopens the run.
+
+## Routes
+
+Every recipient has a route (`tier`), tried in this order (`TIER_ORDER` in `lib/engines/matching.mjs`):
+
+| Route | `tier` | Demo recipient | Takes |
+| --- | --- | --- | --- |
+| Food for people (recuperación alimentaria) | `people` | La Esperanza, Centro Food Bank | effective `edible` only |
+| Material transformation | `transformation` | Eggshell Biomaterials Studio · DEMO | one material, matched on the donor's item (`materials`), `past_prime` or `inedible` |
+| Compost / responsible disposal (gestión responsable) | `valorization` | Centro Organic Recovery Center | any condition, organic categories |
+
+The order is enforced in `checkProposal`, not by score: a maker or a compost site always has room and never says no, so without the rule it would quietly win over a comedor. A maker that only takes eggshell gets a `material_not_accepted` blocker for anything else. The maker in the demo is synthetic; the real shell-recovery process (separating, washing, drying) is the maker's, and grinflow does not claim it is safe or done.
 
 ## Tracking
 

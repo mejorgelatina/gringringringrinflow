@@ -65,6 +65,7 @@ export function mergeSupply(prev: Supply | null, next: Supply | null): Supply | 
   if (!next) return prev;
   const quantityChanged = next.quantity != null;
   return {
+    item: next.item ?? prev.item,
     category: next.category ?? prev.category,
     quantity: quantityChanged ? next.quantity : prev.quantity,
     quantityBasis: quantityChanged ? next.quantityBasis : prev.quantityBasis,
@@ -76,7 +77,7 @@ export function mergeSupply(prev: Supply | null, next: Supply | null): Supply | 
 
 function toSupply(extraction: Extraction): Supply | null {
   const e = extraction.events.find(ev => ev.kind === "supply_announced") ?? (extraction.events.length === 1 && extraction.events[0].kind !== "demand_declared" && extraction.events[0].kind !== "unknown" ? extraction.events[0] : undefined);
-  return e ? { category: e.category, quantity: e.quantity, quantityBasis: e.quantity_basis, condition: e.condition, deadlineHour: e.deadline_hour, location: e.location } : null;
+  return e ? { item: e.item, category: e.category, quantity: e.quantity, quantityBasis: e.quantity_basis, condition: e.condition, deadlineHour: e.deadline_hour, location: e.location } : null;
 }
 
 function observedCondition(run: AgentRun): ObservedCondition {
@@ -209,5 +210,5 @@ function factsFor(run: AgentRun, c: Candidate): string {
 
 export function describeSupply(s: Supply): string {
   const qty = s.quantity == null ? "quantity ?" : `${s.quantityBasis === "estimated" ? "~" : ""}${s.quantity}`;
-  return [qty, s.category ?? "item ?", s.location ? `at ${s.location}` : "location ?", s.deadlineHour != null ? `by ${s.deadlineHour}:00` : "deadline ?", `condition ${s.condition.replaceAll("_", " ")}`].join(" · ");
+  return [qty, s.item ?? s.category ?? "item ?", s.location ? `at ${s.location}` : "location ?", s.deadlineHour != null ? `by ${s.deadlineHour}:00` : "deadline ?", `condition ${s.condition.replaceAll("_", " ")}`].join(" · ");
 }

@@ -8,7 +8,8 @@ import s from "./agent.module.css";
 const EXAMPLES = [
   { label: "clear offer", text: "Tenemos 20 cajas de pan fresco en la colonia Roma, hay que recogerlas antes de las 6 pm." },
   { label: "needs a question", text: "Nos sobraron como unas 15 cajas de jitomate en Centro" },
-  { label: "with a photo", text: "Tenemos 12 cajas de manzanas frescas en la colonia Roma, recoger antes de las 4 pm" }
+  { label: "with a photo", text: "Tenemos 12 cajas de manzanas frescas en la colonia Roma, recoger antes de las 4 pm" },
+  { label: "supermarket returns", text: "Somos el súper de la colonia Roma: tenemos 30 cajas de huevos echados a perder por devoluciones, recoger antes de las 6 pm" }
 ];
 const STATUS: Record<AgentStatus, { label: string; tone: string }> = {
   running: { label: "running", tone: "review" },

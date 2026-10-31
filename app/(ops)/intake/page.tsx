@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 
 type Blocker = { code: string; label: string };
-type Candidate = { recipientId: string; recipient: string; tier: "people" | "valorization"; capacity: string; routeKm?: number | null; routeSource?: string; feasible: boolean; blockers: Blocker[] };
+type Candidate = { recipientId: string; recipient: string; tier: "people" | "transformation" | "valorization"; capacity: string; routeKm?: number | null; routeSource?: string; feasible: boolean; blockers: Blocker[] };
 type Event = { kind: string; item: string | null; category: string | null; quantity: number | null; unit: string | null; quantity_basis: "stated" | "estimated" | null; condition: string; deadline_hour: number | null; location: string | null; unresolved: string[]; quote: string };
 type PhotoAssessment = { visible_items: { item: string; category: string | null; approx_count: number | null; packaging: string | null }[]; visible_label_text: string[]; visible_issues: { issue: string; note: string }[]; visual_grade: "no_visible_issues" | "minor_visible_issues" | "severe_visible_issues" | "unclear_photo"; image_quality: "good" | "poor"; notes: string };
 type Photo = { status: "assessed"; provider: string; model: string | null; assessment: PhotoAssessment; routing: { suggestedCondition: string; reasons: string[]; questionForDonor: string } } | { status: "failed"; provider: string; model: string | null; error: string };

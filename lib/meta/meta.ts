@@ -80,8 +80,9 @@ export function extractLocally(message: string): Extraction {
     return { events: [], residual_text: text, needs_review: false, review_reasons: [] };
   }
   // English keywords keep the demo usable for judges; Spanish remains the primary input.
-  const category = /pan|bolillo|telera|concha|pastel|\bbread\b|bakery|bagels?/.test(lower) ? "panificados" : /jitomate|tomate|verdura|lechuga|tomato(es)?\b|vegetables?|lettuce/.test(lower) ? "verduras" : /fresa|manzana|plátano|platano|fruta|apples?\b|bananas?\b|fruit/.test(lower) ? "frutas" : /leche|yogur|queso|\bmilk\b|cheese/.test(lower) ? "lacteos" : /arroz|frijol|abarrote|\brice\b|\bbeans\b|canned/.test(lower) ? "abarrotes" : /pollo|carne|huevo|chicken|\bmeat\b|\beggs?\b/.test(lower) ? "proteina" : null;
-  const englishItem = lower.match(/\b(apples?|bananas?|bread|bagels?|tomato(?:es)?|lettuce|milk|cheese|rice|beans|chicken|eggs?)\b/);
+  const category = /c[aá]scaras?|\bshells?\b|composta|org[aá]nico/.test(lower) ? "organico" : /pan|bolillo|telera|concha|pastel|\bbread\b|bakery|bagels?/.test(lower) ? "panificados" : /jitomate|tomate|verdura|lechuga|tomato(es)?\b|vegetables?|lettuce/.test(lower) ? "verduras" : /fresa|manzana|plátano|platano|fruta|apples?\b|bananas?\b|fruit/.test(lower) ? "frutas" : /leche|yogur|queso|\bmilk\b|cheese/.test(lower) ? "lacteos" : /arroz|frijol|abarrote|\brice\b|\bbeans\b|canned/.test(lower) ? "abarrotes" : /pollo|carne|huevo|chicken|\bmeat\b|\beggs?\b/.test(lower) ? "proteina" : null;
+  const englishItem = lower.match(/\b(apples?|bananas?|bread|bagels?|tomato(?:es)?|lettuce|milk|cheese|rice|beans|chicken|eggs?|eggshells?)\b/);
+  const spanishItem = lower.match(/(c[aá]scaras? de huevo|huevos?)/);
   const qty = lower.match(/(?:como\s+unas?|aprox(?:imadamente)?\.?\s*)?(\d+(?:[.,]\d+)?)(?!\d|[.,]\d|\s*(?::\d|am\b|pm\b))/);
   const quantity = qty ? Number(qty[1].replace(",", ".")) : null;
   const approximate = qty ? /como\s+unas?|aprox|más o menos|mas o menos|alrededor de|about|around|roughly/.test(lower.slice(Math.max(0, (qty.index ?? 0) - 20), (qty.index ?? 0) + qty[0].length)) : false;
@@ -119,6 +120,6 @@ export function extractLocally(message: string): Extraction {
   if (approximate) reviewReasons.push("Quantity appears to be an estimate and requires confirmation.");
   if (needsInspection) reviewReasons.push("The donor says part of the lot needs inspection.");
   if (unresolved.length) reviewReasons.push(`Critical fields are missing: ${unresolved.join(", ")}.`);
-  const event = { kind, item: englishItem ? englishItem[1] : category ? (category === "panificados" ? "pan" : category) : null, category, quantity, unit, quantity_basis: quantity === null ? null : approximate ? "estimated" : "stated", condition, deadline_hour: deadlineHour, location, unresolved, quote } as const;
+  const event = { kind, item: englishItem ? englishItem[1] : spanishItem ? spanishItem[1] : category ? (category === "panificados" ? "pan" : category) : null, category, quantity, unit, quantity_basis: quantity === null ? null : approximate ? "estimated" : "stated", condition, deadline_hour: deadlineHour, location, unresolved, quote } as const;
   return { events: [event], residual_text: "", needs_review: reviewReasons.length > 0, review_reasons: reviewReasons };
 }
