@@ -49,7 +49,7 @@ export type CharacterizeInput = {
 }
 
 const norm = (s: string) => s.toLocaleLowerCase("es-MX").normalize("NFD").replace(/[̀-ͯ]/g, "")
-const APPROX = /como\s+unas?|aprox|mas o menos|alrededor de|about|around|roughly|unos|unas/
+const APPROX = /\bcomo\b|aprox|mas o menos|alrededor de|cerca de|about|around|roughly|\bunos\b|\bunas\b|~/
 const COUNT_UNITS: [RegExp, string][] = [
   [/^cajas?$|^box(es)?$/, "caja"], [/^piezas?$/, "pieza"], [/^costal(es)?$/, "costal"], [/^bolsas?$/, "bolsa"], [/^cubetas?$/, "cubeta"],
   [/^botes?$/, "bote"], [/^contenedor(es)?$/, "contenedor"], [/^charolas?$/, "charola"], [/^despensas?$/, "despensa"], [/^tarimas?$|^pallets?$/, "tarima"],
@@ -100,9 +100,13 @@ function physical(input: CharacterizeInput, at: string) {
   // The extractor may give a count without its unit; the donor's own words supply it.
   const unit = unitOf(supply.unit) ?? (textCount && textCount.count === supply.quantity ? textCount.unit : null)
 
+  // "40 kg de pan en 20 cajas": an extractor may keep 40 and the unit "caja". When the extracted number is the
+  // one written next to "kg", it is the weight, and the count comes from the donor's own words.
+  const qtyIsWeight = supply.quantity != null && (unit === "kg" || (declaredWeight?.kg === supply.quantity && textCount?.count !== supply.quantity))
+
   // count: what the donor said, or what a photo suggests (always estimado)
   let count: IccRecord["physical"]["count"] = null
-  if (supply.quantity != null && unit && unit !== "kg") {
+  if (supply.quantity != null && unit && !qtyIsWeight) {
     const fromPhoto = supply.quantitySource === "foto"
     const byOperator = supply.quantityBasis === "confirmed"
     count = assessed(
@@ -123,10 +127,11 @@ function physical(input: CharacterizeInput, at: string) {
   if (supply.measuredKg) {
     const m = supply.measuredKg
     weightKg = assessed({ min: m.kg, max: m.kg, point: m.kg }, m.provenance, m.provenance === "medido" ? "báscula" : "revisado en sitio por una persona", [{ kind: m.provenance === "medido" ? "bascula" : "inspeccion", ref: `${m.by} · ${m.at}` }], at, { validatedBy: m.by })
-  } else if (supply.quantity != null && unit === "kg") {
-    const approx = supply.quantityBasis === "estimated"
+  } else if (qtyIsWeight) {
+    const approx = supply.quantityBasis === "estimated" || (declaredWeight?.kg === supply.quantity && declaredWeight.approx)
     const q = declaredWeight?.quote ?? `${supply.quantity} kg`
-    weightKg = assessed({ min: supply.quantity, max: supply.quantity, point: supply.quantity }, approx ? "estimado" : "declarado", approx ? "peso aproximado dicho por el donante" : "peso dicho por el donante", [{ kind: "texto", ref: q }], at)
+    const kg = supply.quantity!
+    weightKg = assessed({ min: kg, max: kg, point: kg }, approx ? "estimado" : "declarado", approx ? "peso aproximado dicho por el donante" : "peso dicho por el donante", [{ kind: "texto", ref: q }], at)
   } else if (declaredWeight) {
     weightKg = assessed({ min: declaredWeight.kg, max: declaredWeight.kg, point: declaredWeight.kg }, declaredWeight.approx ? "estimado" : "declarado", declaredWeight.approx ? "peso aproximado dicho por el donante" : "peso dicho por el donante", [{ kind: "texto", ref: declaredWeight.quote }], at)
   } else if (count) {
@@ -197,7 +202,7 @@ function missingFields(input: CharacterizeInput, q: ReturnType<typeof quality>, 
   const s = input.supply
   const out: MissingField[] = []
   const photoDoubt = input.condition && ["past_prime", "inedible", "assessment_failed"].includes(input.condition.observed) && !input.condition.humanConfirmed
-  if (!s.category && !s.item) out.push({ field: "category", why: "no sabemos qué producto es", askWho: "donor" })
+  if (!s.category) out.push({ field: "category", why: s.item ? `"${s.item}" no tiene categoría de la red todavía (pan, verdura, fruta, lácteos, abarrotes, proteína, orgánico)` : "no sabemos qué producto es", askWho: "donor" })
   if (!p.count && !p.weightKg) out.push({ field: "quantity", why: "no hay cantidad ni peso", askWho: "donor" })
   else if (p.count && p.count.provenance === "estimado" && !p.weightKg?.provenance.match(/declarado|medido|verificado/)) out.push({ field: "quantity", why: p.count.method, askWho: "donor" })
   if (!p.weightKg) out.push({ field: "weight", why: p.count ? `no hay referencia de peso para "${p.count.value.unit}" de este producto` : "sin cantidad no se puede estimar el peso", askWho: "donor" })

@@ -229,7 +229,7 @@ export function iccSummary(run: AgentRun) {
   const w = i.physical.weightKg, v = i.physical.volumeM3, c = i.physical.count;
   return {
     count: c ? `${c.value.count} ${c.value.unit} · ${c.provenance}` : "unknown",
-    weightKg: w ? `${fmtRange(w.value)} kg · ${w.provenance} · ${w.method}` : "unknown: do not state a weight",
+    weightKg: w ? `${fmtRange(w.value)} kg${w.value.min !== w.value.max ? `, planning point ~${Math.round(w.value.point * 10) / 10} kg` : ""} · ${w.provenance} · ${w.method}` : "unknown: do not state a weight",
     volumeM3: v ? `${fmtRange(v.value, 2)} · ${v.provenance}` : "unknown",
     condition: `${i.quality.condition.value} · ${i.quality.condition.provenance}`,
     risks: i.risk.flags.map(f => f.label),
@@ -240,8 +240,11 @@ export function iccSummary(run: AgentRun) {
 }
 
 export function describeSupply(s: Supply, icc?: AgentRun["icc"]): string {
-  const qty = s.quantity == null ? "quantity ?" : `${s.quantityBasis === "estimated" ? "~" : ""}${s.quantity}${s.unit && s.unit !== "kg" ? ` ${s.unit}` : s.unit === "kg" ? " kg" : ""}`;
   const w = icc?.physical.weightKg;
-  const weight = s.unit === "kg" ? null : w ? `${w.provenance === "estimado" ? "~" : ""}${fmtRange(w.value)} kg ${w.provenance}` : "weight ?";
-  return [qty, s.item ?? s.category ?? "item ?", weight, s.location ? `at ${s.location}` : "location ?", s.deadlineHour != null ? `by ${s.deadlineHour}:00` : "deadline ?", `condition ${s.condition.replaceAll("_", " ")}`].join(" · ");
+  const est = w?.provenance === "estimado";
+  // A weight always carries its provenance: "~30–50 kg estimado", or "40 kg" when declared.
+  const weight = w ? `${est ? "~" : ""}${fmtRange(w.value)} kg${est ? " estimado" : ""}` : "weight ?";
+  const count = s.quantity == null || s.unit === "kg" ? null : `${s.quantityBasis === "estimated" ? "~" : ""}${s.quantity}${s.unit ? ` ${s.unit}` : ""}`;
+  const head = count ?? (s.unit === "kg" ? null : "quantity ?");
+  return [head, s.item ?? s.category ?? "item ?", weight, s.location ? `at ${s.location}` : "location ?", s.deadlineHour != null ? `by ${s.deadlineHour}:00` : "deadline ?", `condition ${s.condition.replaceAll("_", " ")}`].filter(Boolean).join(" · ");
 }

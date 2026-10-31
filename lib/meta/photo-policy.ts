@@ -70,7 +70,7 @@ export function assessPhotoLocally(): PhotoAssessment {
 }
 
 /** Labelled fixtures so the damage-blocking rule can be demonstrated without a model call. Never used when Meta is on. */
-export const PHOTO_FIXTURES: Record<"clean" | "mold", PhotoAssessment> = {
+export const PHOTO_FIXTURES: Record<"clean" | "mold" | "containers", PhotoAssessment> = {
   clean: {
     visible_items: [{ item: "apples", category: "frutas", approx_count: 12, packaging: "cardboard boxes" }],
     visible_label_text: ["PRODUCE OF MEXICO"],
@@ -86,6 +86,14 @@ export const PHOTO_FIXTURES: Record<"clean" | "mold", PhotoAssessment> = {
     visual_grade: "severe_visible_issues",
     image_quality: "good",
     notes: "SIMULATED FIXTURE · no model was called. Shows how visible damage is handled."
+  },
+  containers: {
+    visible_items: [{ item: "comida preparada", category: null, approx_count: 12, packaging: "contenedores de plástico con tapa" }],
+    visible_label_text: [],
+    visible_issues: [],
+    visual_grade: "no_visible_issues",
+    image_quality: "good",
+    notes: "SIMULATED FIXTURE · no model was called. About 12 closed containers; a photo gives a count and a volume, not a weight, a temperature or food safety."
   }
 };
 

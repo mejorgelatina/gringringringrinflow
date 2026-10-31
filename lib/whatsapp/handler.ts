@@ -22,7 +22,7 @@ export type HandlerContext = {
   /** When false or missing, the reply is composed and traced but never sent. */
   send: ((to: string, body: string) => Promise<string | null>) | null;
   fetchMedia: ((mediaId: string) => Promise<string>) | null;
-  photoFixture?: "clean" | "mold";
+  photoFixture?: "clean" | "mold" | "containers";
   source: Trace["source"];
   now?: () => Date;
 };

@@ -24,7 +24,7 @@ async function toDataUrl(file: File): Promise<string> {
 export default function WhatsAppDemo() {
   const [text, setText] = useState(SAMPLES[0]);
   const [image, setImage] = useState<string | null>(null);
-  const [fixture, setFixture] = useState<"" | "clean" | "mold">("");
+  const [fixture, setFixture] = useState<"" | "clean" | "mold" | "containers">("");
   const [chat, setChat] = useState<Bubble[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -72,7 +72,7 @@ export default function WhatsAppDemo() {
           <div className="wa-actions">
             <label className="photo-pick" htmlFor="wa-photo">{image ? "Change photo" : "+ Photo"}</label>
             <input id="wa-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={async e => { const f = e.target.files?.[0]; setError(""); if (!f) return; try { setImage(await toDataUrl(f)); } catch { setError("Could not read that image."); } }}/>
-            {image && <><img className="photo-thumb" src={image} alt="Photo preview"/><label className="fixture-pick">Offline result<select value={fixture} onChange={e => setFixture(e.target.value as typeof fixture)}><option value="">Not analyzed</option><option value="clean">Simulate: intact</option><option value="mold">Simulate: mold</option></select></label></>}
+            {image && <><img className="photo-thumb" src={image} alt="Photo preview"/><label className="fixture-pick">Offline result<select value={fixture} onChange={e => setFixture(e.target.value as typeof fixture)}><option value="">Not analyzed</option><option value="clean">Simulate: intact</option><option value="mold">Simulate: mold</option><option value="containers">Simulate: ~12 food containers</option></select></label></>}
             <button className="primary" onClick={send} disabled={busy || (!text.trim() && !image)}>{busy ? "Sending…" : "Send ↗"}</button>
           </div>
           {error && <div className="error" role="alert">{error}</div>}

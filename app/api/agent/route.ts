@@ -11,7 +11,7 @@ const Body = z.object({
   message: z.string().trim().min(1).max(5000),
   image: z.string().refine(isAcceptableImageDataUrl, "Unsupported or oversized image").optional(),
   // Demo-only: a labelled fixture result for the photo when Meta calls are off. Ignored when Meta is on.
-  photoFixture: z.enum(["clean", "mold"]).optional()
+  photoFixture: z.enum(["clean", "mold", "containers"]).optional()
 });
 export const runtime = "nodejs";
 

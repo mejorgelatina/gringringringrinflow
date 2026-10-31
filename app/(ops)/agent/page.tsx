@@ -32,7 +32,7 @@ async function toDataUrl(file: File): Promise<string> {
 export default function AgentConsole() {
   const [message, setMessage] = useState(EXAMPLES[0].text);
   const [image, setImage] = useState<string | null>(null);
-  const [fixture, setFixture] = useState<"" | "clean" | "mold">("");
+  const [fixture, setFixture] = useState<"" | "clean" | "mold" | "containers">("");
   const [run, setRun] = useState<AgentRun | null>(null);
   const [tracking, setTracking] = useState<Tracking | null>(null);
   const [token, setToken] = useState("");
@@ -80,7 +80,7 @@ export default function AgentConsole() {
       <div className="example-row"><span>try:</span>{EXAMPLES.map(e => <button key={e.label} className="secondary" onClick={() => setMessage(e.text)}>{e.label}</button>)}</div>
       <label htmlFor="message">incoming message</label>
       <textarea id="message" className="keep-case" value={message} onChange={e => setMessage(e.target.value)} maxLength={5000}/>
-      <div className="photo-row"><label className="photo-pick" htmlFor="photo">{image ? "change photo" : "+ add a photo (optional)"}</label><input id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => pickPhoto(e.target.files?.[0])} hidden/>{image && <><img className="photo-thumb" src={image} alt="donor photo preview"/><button className="secondary" onClick={() => setImage(null)}>remove</button><label className="fixture-pick">offline demo result<select value={fixture} onChange={e => setFixture(e.target.value as typeof fixture)}><option value="">not analyzed</option><option value="clean">simulate: looks intact</option><option value="mold">simulate: visible mold</option></select></label></>}</div>
+      <div className="photo-row"><label className="photo-pick" htmlFor="photo">{image ? "change photo" : "+ add a photo (optional)"}</label><input id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => pickPhoto(e.target.files?.[0])} hidden/>{image && <><img className="photo-thumb" src={image} alt="donor photo preview"/><button className="secondary" onClick={() => setImage(null)}>remove</button><label className="fixture-pick">offline demo result<select value={fixture} onChange={e => setFixture(e.target.value as typeof fixture)}><option value="">not analyzed</option><option value="clean">simulate: looks intact</option><option value="mold">simulate: visible mold</option><option value="containers">simulate: ~12 food containers</option></select></label></>}</div>
       <div className="input-foot"><span>{message.length}/5,000 characters</span><button className="primary" onClick={start} disabled={busy || !message.trim()}>{busy ? "running…" : "run the agent ↗"}</button></div>
       {error && <div className="error" role="alert">{error}</div>}
     </section>
