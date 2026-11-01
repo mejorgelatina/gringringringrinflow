@@ -35,16 +35,32 @@ const code = (fn: () => unknown) => {
 const eligible = (r: Resource, now = r.pickupWindow.start) => matchResource(r, net, r.kg, now).filter((m) => m.eligible).map((m) => m.participantId)
 
 test("the three demo scenarios end at three different destinations, with verified kg kept separate", () => {
+  // Default: carriers hidden. Receivers pick up or send their own courier; nothing moves on a backhaul.
   const finals = SCENARIOS.map((id) => runScenario(id).steps.at(-1)!.state)
   for (const c of finals) assert.equal(c.status, "closed")
   const m = metrics(finals)
   assert.deepEqual(m.verifiedKg, { people: 30, transformation: 11.5, compost: 34 })
   assert.equal(m.delivered, 4) // pan has two deliveries, the others one each
-  assert.equal(m.idleCapacityKg, 35)
-  assert.ok(m.detourKm > 0 && m.detourKm <= 8)
-  assert.equal(finals[0].reservations.map((r) => r.quote!.mode).join(","), "pickup,courier")
+  assert.equal(finals[0].reservations.map((r) => r.quote!.mode).join(","), "pickup,own_courier")
   assert.equal(finals[1].reservations[0].tier, "transformation")
-  assert.equal(finals[2].reservations[0].quote!.mode, "backhaul")
+  assert.equal(finals[2].reservations[0].quote!.mode, "own_courier")
+  assert.ok(finals.every((c) => c.reservations.every((r) => r.quote!.costMxn === 0)))
+})
+
+test("with carriers switched on, the scenarios use the quoted courier and the backhaul", () => {
+  process.env.NEXT_PUBLIC_GRINFLOW_CARRIERS = "on"
+  try {
+    const finals = SCENARIOS.map((id) => runScenario(id).steps.at(-1)!.state)
+    for (const c of finals) assert.equal(c.status, "closed")
+    const m = metrics(finals)
+    assert.deepEqual(m.verifiedKg, { people: 30, transformation: 11.5, compost: 34 })
+    assert.equal(m.idleCapacityKg, 35)
+    assert.ok(m.detourKm > 0 && m.detourKm <= 8)
+    assert.equal(finals[0].reservations.map((r) => r.quote!.mode).join(","), "pickup,courier")
+    assert.equal(finals[2].reservations[0].quote!.mode, "backhaul")
+  } finally {
+    delete process.env.NEXT_PUBLIC_GRINFLOW_CARRIERS
+  }
 })
 
 test("food for people only when the condition is edible and confirmed; unknown never becomes edible", () => {

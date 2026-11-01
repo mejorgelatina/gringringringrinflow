@@ -17,7 +17,7 @@ export function trackingStages(c: NetworkCase, r: Reservation): Stage[] {
   const stages: Stage[] = [
     { key: "published", label: "publicado", done: true, at: hhmm(c.publishedAt) },
     { key: "reserved", label: `apartado · ${r.kg} kg`, done: true, at: hhmm(r.createdAt) },
-    { key: "delivery", label: r.quote ? (r.quote.mode === "pickup" ? "recoge el receptor · $0" : `${r.quote.mode === "courier" ? "envío cotizado" : "ruta existente"} · $${r.quote.costMxn}`) : "forma de entrega", done: !!r.quote, at: at("pickup_scheduled") ?? at("quote_presented") },
+    { key: "delivery", label: r.quote ? (r.quote.mode === "pickup" ? "recoge el receptor · $0" : r.quote.mode === "own_courier" ? "el receptor manda su propio envío · a su cargo" : `${r.quote.mode === "courier" ? "envío cotizado" : "ruta existente"} · $${r.quote.costMxn}`) : "forma de entrega", done: !!r.quote, at: at("pickup_scheduled") ?? at("quote_presented") },
   ]
   if (paid) {
     stages.push({ key: "accepted", label: "costo aceptado por el receptor", done: r.quoteAcceptedAt !== null, at: at("quote_accepted") })

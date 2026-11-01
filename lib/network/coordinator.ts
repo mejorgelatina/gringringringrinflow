@@ -1,5 +1,5 @@
 import { allocateTier, matchResource } from "./match.ts"
-import { backhaulQuote, courierQuote, pickupQuote } from "./logistics.ts"
+import { backhaulQuote, courierQuote, ownCourierQuote, pickupQuote } from "./logistics.ts"
 import { hhmm } from "./zones.ts"
 import { DEFAULT_POLICY, TIER_LABEL, type DeliveryMode, type Match, type Ms, type Network, type NetworkCase, type NetworkEvent, type Policy, type Quote, type Reservation, type ReservationStatus, type Resource } from "./types.ts"
 
@@ -149,6 +149,10 @@ export function deliveryChoices(c: NetworkCase, network: Network, reservationId:
     const q = pickupQuote(c.resource, dest, now).quote
     if (q) quotes.push(q)
   }
+  if (m.zone !== "c" && network.vehicles.length === 0) {
+    const q = ownCourierQuote(c.resource, dest, now).quote
+    if (q) quotes.push(q)
+  }
   if (m.zone !== "c") {
     for (const v of network.vehicles) {
       const q = (v.kind === "courier" ? courierQuote : backhaulQuote)(c.resource, dest, v, r.kg, now).quote
@@ -164,10 +168,10 @@ export function chooseDelivery(c: NetworkCase, network: Network, reservationId: 
   if (r.status !== "held") throw new NetworkError("bad_state", "La forma de entrega ya se eligió.")
   const quote = deliveryChoices(c, network, reservationId, now).find((q) => q.mode === mode && (vehicleId === null || q.vehicleId === vehicleId))
   if (!quote) throw new NetworkError("option_unavailable", "Esa forma de entrega no es viable para este apartado.")
-  if (mode === "pickup") {
+  if (mode === "pickup" || mode === "own_courier") {
     const code = handoffCode(r.id)
     const next = { ...c, reservations: update(c, r.id, { status: "scheduled", quote, holdUntil: null, handoffCode: code }) }
-    return { ...next, events: log(next, now, "pickup_scheduled", r.participantId, { reservation: r.id, pickupAt: hhmm(quote.pickupAt), costMxn: 0, code }) }
+    return { ...next, events: log(next, now, "pickup_scheduled", r.participantId, { reservation: r.id, mode, pickupAt: hhmm(quote.pickupAt), costMxn: 0, code }) }
   }
   const next = { ...c, reservations: update(c, r.id, { status: "awaiting_acceptance", quote }) }
   return { ...next, events: log(next, now, "quote_presented", "grinflow", { reservation: r.id, mode, vehicle: quote.label, costMxn: quote.costMxn, arrivalAt: hhmm(quote.arrivalAt), detourKm: quote.detourKm, simulated: quote.simulated }) }

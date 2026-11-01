@@ -1,7 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
 import { availableKg } from "@/lib/network/coordinator";
-import { DEMO_NETWORK, runScenario, SCENARIOS, type ScenarioId } from "@/lib/network/demo";
+import { runScenario, scenarioNetwork, SCENARIOS, type ScenarioId } from "@/lib/network/demo";
+import { carriersEnabled } from "@/lib/network/features";
 import { matchResource } from "@/lib/network/match";
 import { metrics, trackingStages } from "@/lib/network/outcomes";
 import { TIER_LABEL, TIERS, type Participant } from "@/lib/network/types";
@@ -11,7 +12,10 @@ import { characterizeResource } from "@/lib/icc/characterize";
 import { IccCard } from "../icc/icc-card";
 import s from "./network.module.css";
 
-const NAMES = Object.fromEntries(DEMO_NETWORK.participants.map(p => [p.id, p.name]));
+// Carriers stay hidden until validated (lib/network/features.ts); the scenarios then run without them.
+const NET = scenarioNetwork();
+const CARRIERS = carriersEnabled();
+const NAMES = Object.fromEntries(NET.participants.map(p => [p.id, p.name]));
 const ROLE: Record<string, string> = { donor: "donante", receiver: "organización", maker: "maker", compost: "composta", carrier: "transporte", operator: "operación" };
 const STATUS: Record<string, string> = { held: "apartado", awaiting_acceptance: "esperando que acepte el costo", awaiting_capacity: "esperando capacidad", scheduled: "confirmado", in_transit: "en camino", delivered: "recibido", expired: "expirado", cancelled: "cancelado", stopped: "detenido · revisión humana" };
 const COND: Record<string, string> = { edible: "apto", past_prime: "pasado de punto", inedible: "no comestible", unknown: "sin confirmar" };
@@ -51,7 +55,7 @@ export default function NetworkPage() {
   const sc = scenarios[id];
   const cur = sc.steps[Math.min(step, sc.steps.length - 1)];
   const c = cur.state;
-  const matches = useMemo(() => matchResource(c.resource, DEMO_NETWORK, c.resource.kg, c.publishedAt), [c.resource, c.publishedAt]);
+  const matches = useMemo(() => matchResource(c.resource, NET, c.resource.kg, c.publishedAt), [c.resource, c.publishedAt]);
   const notified = new Set(c.waves.flatMap(w => w.notified));
   const messages = sc.steps.slice(0, step + 1).map(x => x.message).filter(Boolean) as NonNullable<typeof cur.message>[];
   const finals = SCENARIOS.map(x => scenarios[x].steps.at(-1)!.state);
@@ -64,7 +68,7 @@ export default function NetworkPage() {
 
   return <main className="shell">
     <header className="topbar"><a className="wordmark" href="/"><img src="/grinflow-logo.svg" alt="grinflow"/></a><div className="topmeta"><span className="dot"/> red de recursos · datos sintéticos</div></header>
-    <section className="hero"><div className="eyebrow">una red, tres destinos</div><h1>el mismo agente,<br/><em>tres destinos.</em></h1><p className="lede">grinflow conecta lo que sobra con quien puede aprovecharlo: primero personas, luego transformación, luego composta. cada receptor decide si recoge gratis o paga un envío, y solo cuenta lo que se recibe y se verifica.</p></section>
+    <section className="hero"><div className="eyebrow">una red, tres destinos</div><h1>el mismo agente,<br/><em>tres destinos.</em></h1><p className="lede">grinflow conecta lo que sobra con quien puede aprovecharlo: primero personas, luego transformación, luego composta. cada receptor decide si recoge con su gente o manda su propio envío (un uber) y lo paga, y solo cuenta lo que se recibe y se verifica.</p></section>
     <div className="warning"><span className="warning-icon">!</span><div><strong>datos sintéticos · transporte simulado</strong><p>lugares, organizaciones, cotizaciones y horarios son inventados. no se llama a ninguna api de mensajería, whatsapp ni meta.</p></div></div>
 
     <section className="section-block">
@@ -122,23 +126,25 @@ export default function NetworkPage() {
         <div className={s.fact}><span>min. hasta el primer apartado</span><strong>{m.avgMinutesToFirstReservation ?? "—"}</strong></div>
         <div className={s.fact}><span>entregas completadas</span><strong>{m.delivered}/{m.reservations}</strong></div>
         <div className={s.fact}><span>apartados expirados</span><strong>{m.expired}</strong></div>
+        {CARRIERS && <>
         <div className={s.fact}><span>costo logístico (pagado por receptores)</span><strong>${m.logisticsCostMxn} mxn</strong></div>
         <div className={s.fact}><span>capacidad ociosa aprovechada</span><strong>{m.idleCapacityKg} kg</strong></div>
         <div className={s.fact}><span>km de desvío añadidos</span><strong>{m.detourKm} km</strong></div>
+        </>}
         <div className={s.fact}><span>kg sin asignar</span><strong>{m.unallocatedKg}</strong></div>
       </div>
     </section>
 
     <section className="section-block">
-      <div className="section-head"><div><div className="eyebrow">registro de la red</div><h2>un solo modelo de participantes.</h2><p className="subhead">{DEMO_NETWORK.area.name}: zona a ≤ {DEMO_NETWORK.area.zoneAMaxMinutes} min (recolección directa), zona b ≤ {DEMO_NETWORK.area.zoneBMaxMinutes} min (envío cotizado o ruta existente), zona c no se ofrece.</p></div></div>
+      <div className="section-head"><div><div className="eyebrow">registro de la red</div><h2>un solo modelo de participantes.</h2><p className="subhead">{NET.area.name}: zona a ≤ {NET.area.zoneAMaxMinutes} min (recolección directa), zona b ≤ {NET.area.zoneBMaxMinutes} min ({CARRIERS ? "envío cotizado o ruta existente" : "el receptor manda su propio envío"}), zona c no se ofrece.</p></div></div>
       <div className={s.tableWrap}><table className={s.registry}>
         <thead><tr><th>participante</th><th>rol</th><th>zona</th><th>validado</th><th>recibe</th></tr></thead>
-        <tbody>{DEMO_NETWORK.participants.map(p => <tr key={p.id}><td>{p.name}</td><td>{p.roles.map(r => ROLE[r]).join(", ")}{p.need ? ` · ${TIER_LABEL[p.need.tier]}` : ""}</td><td>{p.area}</td><td>{p.verified ? "sí" : "pendiente"}</td><td>{p.need ? needLine(p) : "—"}</td></tr>)}</tbody>
+        <tbody>{NET.participants.map(p => <tr key={p.id}><td>{p.name}</td><td>{p.roles.map(r => ROLE[r]).join(", ")}{p.need ? ` · ${TIER_LABEL[p.need.tier]}` : ""}</td><td>{p.area}</td><td>{p.verified ? "sí" : "pendiente"}</td><td>{p.need ? needLine(p) : "—"}</td></tr>)}</tbody>
       </table></div>
-      <div className={s.tableWrap} style={{ marginTop: 16 }}><table className={s.registry}>
+      {CARRIERS && <div className={s.tableWrap} style={{ marginTop: 16 }}><table className={s.registry}>
         <thead><tr><th>capacidad logística</th><th>tipo</th><th>kg</th><th>tarifa (simulada)</th></tr></thead>
-        <tbody>{DEMO_NETWORK.vehicles.map(v => <tr key={v.id}><td>{v.label}</td><td>{v.kind === "courier" ? "envío cotizado" : "ruta existente (backhaul)"}</td><td>{v.capacityKg}</td><td>${v.pricing.baseMxn} + ${v.pricing.perKmMxn}/km{v.kind === "route" ? " de desvío" : ""}</td></tr>)}</tbody>
-      </table></div>
+        <tbody>{NET.vehicles.map(v => <tr key={v.id}><td>{v.label}</td><td>{v.kind === "courier" ? "envío cotizado" : "ruta existente (backhaul)"}</td><td>{v.capacityKg}</td><td>${v.pricing.baseMxn} + ${v.pricing.perKmMxn}/km{v.kind === "route" ? " de desvío" : ""}</td></tr>)}</tbody>
+      </table></div>}
     </section>
     <footer><div className="wordmark"><img src="/grinflow-logo.svg" alt="grinflow"/></div><p>the infrastructure already exists. we’re building the intelligence layer on top.</p><span>engine: lib/network · synthetic demo</span></footer>
   </main>;
