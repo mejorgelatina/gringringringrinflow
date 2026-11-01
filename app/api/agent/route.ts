@@ -1,3 +1,5 @@
+import { registryStore } from "@/lib/registry/store";
+import { refreshLiveNetwork } from "@/lib/registry/network";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { agentWiring } from "@/lib/agent/deps";
@@ -17,6 +19,8 @@ export const runtime = "nodejs";
 
 /** Start an intake agent run. The image is used for this request only and never stored. */
 export async function POST(request: Request) {
+  // Verified registrations join the network every channel evaluates against.
+  await refreshLiveNetwork(registryStore());
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_request", message: "Submit a message of up to 5,000 characters and, optionally, one JPEG/PNG/WebP photo under 3 MB." }, { status: 400 });
   const { message, image, photoFixture } = parsed.data;

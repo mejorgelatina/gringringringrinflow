@@ -1,6 +1,7 @@
 import { evaluateSupply } from "../network/supply.ts";
 import { characterize, countFromPhoto } from "../icc/characterize.ts";
 import type { Channel, IccRecord } from "../icc/types.ts";
+import type { Point } from "../network/types.ts";
 import type { Extraction } from "../meta/types";
 import { assessPhotoLocally, PHOTO_FIXTURES, resolveCondition, routePhotoAssessment, type Condition, type ConditionEvidence, type HumanConfirmation, type ObservedCondition, type PhotoAssessment, type PhotoRouting } from "../meta/photo-policy.ts";
 
@@ -27,6 +28,10 @@ export type Supply = {
   condition: Condition;
   deadlineHour: number | null;
   location: string | null;
+  /** Exact pickup point from a whatsapp pin or the donor's registered address. */
+  point?: Point | null;
+  /** The registered donor offering it, if any. */
+  donorId?: string | null;
   /** A weight someone measured (scale) or checked on site. */
   measuredKg?: { kg: number; provenance: "medido" | "verificado"; by: string; at: string } | null;
 };
@@ -65,7 +70,14 @@ export const LOCAL_PROVIDER = "Local demo fallback (Meta calls disabled or key m
  * steps one at a time. Extraction and photo assessment produce evidence; ICC (`characterize`) turns it
  * into one record; the network engine evaluates that record.
  */
-export async function processIntake(message: string, image: string | undefined, deps: IntakeDeps, fixture?: keyof typeof PHOTO_FIXTURES, channel: Channel = "intake"): Promise<IntakeResult> {
+/**
+ * What grinflow already knows about where the lot is and who offers it: a location pin from this
+ * conversation, or the address of a registered donor. Used only when the message itself names no place
+ * (a pin always wins: it is the most exact thing the donor gave).
+ */
+export type IntakeOrigin = { point: Point; label: string; source: "pin" | "registro"; donorId?: string | null } | { point?: null; label?: null; source?: null; donorId?: string | null };
+
+export async function processIntake(message: string, image: string | undefined, deps: IntakeDeps, fixture?: keyof typeof PHOTO_FIXTURES, channel: Channel = "intake", origin?: IntakeOrigin): Promise<IntakeResult> {
   const receivedAt = new Date().toISOString();
   const provider = deps.useMeta ? "Meta Model API" : LOCAL_PROVIDER;
   let metaCalls = 0;
@@ -112,6 +124,10 @@ export async function processIntake(message: string, image: string | undefined, 
     }
   }
 
+  if (supply && origin) {
+    if (origin.donorId) supply.donorId = origin.donorId;
+    if (origin.point && (origin.source === "pin" || !supply.location)) { supply.point = origin.point; supply.location = origin.label; }
+  }
   const condition = supply ? resolveCondition(supply.condition, observed, null) : null;
   if (supply && condition) supply.condition = condition.effective;
   if (supply) supply = countFromPhoto(supply, iccPhoto(photo));

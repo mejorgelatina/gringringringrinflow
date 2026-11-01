@@ -11,7 +11,13 @@ type Bubble = { who: "donor" | "grinflow"; text: string; image?: string; trace?:
 const SAMPLES = [
   "Tenemos 20 cajas de pan fresco en la colonia Roma, hay que recogerlas antes de las 6 pm.",
   "Nos sobraron como unas 15 cajas de jitomate en Centro",
-  "We have about 12 boxes of apples at the Roma market loading entrance today before 4 PM. Some boxes need inspection."
+  "We have about 12 boxes of apples at the Roma market loading entrance today before 4 PM. Some boxes need inspection.",
+  "quiero registrar mi organización"
+];
+/** Demo pins, like whatsapp's 📎 → ubicación. Synthetic places in the pilot area. */
+const PINS = [
+  { label: "Pin: Roma Norte", lat: 19.4185, lng: -99.1625, name: "Calle Orizaba 101, Roma Norte" },
+  { label: "Pin: Doctores", lat: 19.4172, lng: -99.1448, name: "Dr. Vértiz 200, Doctores" },
 ];
 
 async function toDataUrl(file: File): Promise<string> {
@@ -40,16 +46,24 @@ export default function WhatsAppDemo() {
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => { bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" }); }, [chat, busy]);
 
-  async function send() {
+  async function reset() {
+    setError("");
+    try { await fetch("/api/whatsapp/simulate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reset: true }) }); } catch { /* best effort */ }
+    setChat([]);
+  }
+
+  async function send(pin?: (typeof PINS)[number]) {
     setBusy(true); setError("");
-    const outgoing: Bubble = { who: "donor", text, image: image ?? undefined };
+    const outgoing: Bubble = pin ? { who: "donor", text: `📍 ${pin.name}` } : { who: "donor", text, image: image ?? undefined };
     setChat(c => [...c, outgoing]);
     try {
-      const r = await fetch("/api/whatsapp/simulate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, ...(image ? { image } : {}), ...(image && fixture ? { photoFixture: fixture } : {}) }) });
+      const body = pin ? { location: { lat: pin.lat, lng: pin.lng, label: pin.name } } : { text, ...(image ? { image } : {}), ...(image && fixture ? { photoFixture: fixture } : {}) };
+      const r = await fetch("/api/whatsapp/simulate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.message || "Simulation failed");
       setChat(c => [...c, { who: "grinflow", text: d.trace.reply ?? "(no reply)", trace: d.trace }]);
-      setImage(null); setText(""); refresh();
+      if (!pin) { setImage(null); setText(""); }
+      refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Unexpected error"); }
     finally { setBusy(false); }
   }
@@ -75,7 +89,9 @@ export default function WhatsAppDemo() {
             <label className="photo-pick" htmlFor="wa-photo">{image ? "Change photo" : "+ Photo"}</label>
             <input id="wa-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={async e => { const f = e.target.files?.[0]; setError(""); if (!f) return; try { setImage(await toDataUrl(f)); } catch { setError("Could not read that image."); } }}/>
             {image && <><img className="photo-thumb" src={image} alt="Photo preview"/><label className="fixture-pick">Offline result<select value={fixture} onChange={e => setFixture(e.target.value as typeof fixture)}><option value="">Not analyzed</option><option value="clean">Simulate: intact</option><option value="mold">Simulate: mold</option><option value="containers">Simulate: ~12 food containers</option></select></label></>}
-            <button className="primary" onClick={send} disabled={busy || (!text.trim() && !image)}>{busy ? "Sending…" : "Send ↗"}</button>
+            {PINS.map(p => <button key={p.label} className="secondary" onClick={() => send(p)} disabled={busy}>{p.label}</button>)}
+            {chat.length > 0 && <button className="secondary" onClick={reset} disabled={busy}>New chat</button>}
+            <button className="primary" onClick={() => send()} disabled={busy || (!text.trim() && !image)}>{busy ? "Sending…" : "Send ↗"}</button>
           </div>
           {error && <div className="error" role="alert">{error}</div>}
         </div>
