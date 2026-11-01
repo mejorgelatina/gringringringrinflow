@@ -238,7 +238,7 @@ test("AG-N1: the agent answers with the network engine: delivery options carry w
   // Carriers are hidden until validated: a receiver can send its own courier (an uber) and pays it; grinflow quotes nothing.
   assert.ok(run.candidates?.some(c => c.capacityId === "own-courier" && /pays it/.test(c.capacity)))
   assert.ok(!run.candidates?.some(c => c.capacityId.startsWith("veh-")))
-  const far = await startRun("Tenemos 20 cajas de pan fresco en la colonia Polanco, recoger antes de las 6 pm.", undefined, offline(), createScriptedPlanner())
+  const far = await startRun("Tenemos 20 cajas de pan fresco en la colonia Iztapalapa, recoger antes de las 6 pm.", undefined, offline(), createScriptedPlanner())
   assert.ok(far.candidates?.every(c => !c.feasible && c.blockers.some(b => b.code === "route_unverified")))
 })
 
