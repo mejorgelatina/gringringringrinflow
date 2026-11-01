@@ -48,7 +48,8 @@ demo on one warm instance, lost on a cold start.
 
 | Variable | Effect |
 | --- | --- |
-| `OPERATOR_KEY` | Unlocks real registrations and contact data in `/team`. Without it `/team` shows only simulator records |
+| `NEXT_PUBLIC_FIREBASE_*` + `GRINFLOW_TEAM_EMAILS` | Team sign-in to `/team` with Firebase Auth (email/password, verified email on the list). See `docs/FIREBASE.md` |
+| `OPERATOR_KEY` | Optional fallback that also unlocks real registrations and contact data in `/team`. Without sign-in or key `/team` shows only simulator records |
 | `NEXT_PUBLIC_GRINFLOW_CARRIERS=on` | Brings back coordinated carriers (quoted courier, backhaul, `/backhaul`). Off by default: not validated yet |
 | `WHATSAPP_ALLOWED_SENDERS` | Leave empty for judges to test with their own number |
 
