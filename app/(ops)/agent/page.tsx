@@ -42,6 +42,7 @@ export default function AgentConsole() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reply, setReply] = useState("");
+  const [whatsappReply, setWhatsappReply] = useState("");
   const [reviewer, setReviewer] = useState("operator (demo)");
   const [notes, setNotes] = useState("");
   const [inspected, setInspected] = useState<"" | "edible" | "past_prime" | "inedible">("");
@@ -54,7 +55,7 @@ export default function AgentConsole() {
       const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.message || "the agent could not continue");
-      setRun(d.run); setTracking(d.tracking); setToken(d.token); setSigned(d.stateSigned); setReply(""); setNotes("");
+      setRun(d.run); setTracking(d.tracking); setToken(d.token); setSigned(d.stateSigned); setReply(""); setWhatsappReply(d.whatsappReply ?? ""); setNotes("");
       save({ code: d.run.code, token: d.token, at: new Date().toISOString(), headline: d.tracking.headline });
     } catch (e) { setError(e instanceof Error ? e.message : "unexpected error"); }
     finally { setBusy(false); }
@@ -129,7 +130,7 @@ export default function AgentConsole() {
       </div>}
 
       {run.status === "paused" && <div className={s.row}><button className="secondary" disabled={busy} onClick={() => resume({ type: "continue" })}>give it a few more turns</button></div>}
-      {run.status === "approved" && <div className="simulated-outcome"><strong>simulated outcome</strong><p>approved by {run.review?.reviewer}. no pickup was booked and no message was sent.</p></div>}
+      {run.status === "approved" && <div className="simulated-outcome"><strong>simulated outcome</strong><p>approved by {run.review?.reviewer}. no pickup was booked and no message was sent.</p>{whatsappReply && <><div className="tiny-label" style={{ marginTop: 14 }}>whatsapp reply preview</div><p className="keep-case">{whatsappReply}</p></>}</div>}
     </section>}
   </main>;
 }

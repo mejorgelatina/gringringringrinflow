@@ -7,6 +7,7 @@ import { ResumeError, resumeRun } from "@/lib/agent/loop";
 import { remember } from "@/lib/agent/registry";
 import { trackingView } from "@/lib/agent/tracking";
 import { seal, stateSigned, unseal } from "@/lib/agent/state";
+import { approvalReply } from "@/lib/whatsapp/approval-reply";
 
 const Action = z.discriminatedUnion("type", [
   z.object({ type: z.literal("donor_reply"), text: z.string().trim().min(1).max(2000) }),
@@ -30,7 +31,8 @@ export async function POST(request: Request) {
     const next = await resumeRun(run, parsed.data.action, deps, planner);
     const token = seal(next);
     await remember(next.code, token);
-    return NextResponse.json({ ok: true, run: next, token, tracking: trackingView(next), stateSigned: stateSigned() });
+    const whatsappReply = next.status === "approved" ? approvalReply(next.code, new URL(request.url).origin) : null;
+    return NextResponse.json({ ok: true, run: next, token, tracking: trackingView(next), stateSigned: stateSigned(), whatsappReply });
   } catch (error) {
     if (error instanceof ResumeError) return NextResponse.json({ ok: false, error: "invalid_action", message: error.message }, { status: 409 });
     throw error;
