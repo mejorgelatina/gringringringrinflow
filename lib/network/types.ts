@@ -153,7 +153,12 @@ export type Match = {
   score: number
 }
 
-export type DeliveryMode = "pickup" | "courier" | "backhaul"
+/**
+ * pickup: the receiver collects with its own people or vehicle. own_courier: the receiver sends its own
+ * courier (an uber, a messenger it already uses) and pays it; grinflow only issues the handoff code.
+ * courier / backhaul: transport grinflow coordinates. Hidden until carriers are validated (see features.ts).
+ */
+export type DeliveryMode = "pickup" | "own_courier" | "courier" | "backhaul"
 
 export type Quote = {
   mode: DeliveryMode

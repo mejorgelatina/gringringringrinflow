@@ -21,10 +21,10 @@ test("an organization that can receive food is demand, not a supply offer", asyn
   assert.deepEqual(r.demand, { category: "verduras", quantity: 30, unit: "kg", untilHour: 17, location: "roma" })
 })
 
-test("demand reply restates what was noted and says a person verifies the organization", async () => {
+test("demand reply restates what was noted and invites an unregistered org to register, verified by a person", async () => {
   const t = await web("w1", "Somos un comedor en la colonia Roma, podemos recibir 30 kilos de verdura hasta las 5 pm")
   assert.match(t.reply!, /puede recibir: 30 kg, verduras, en Roma, hasta las 17:00/)
-  assert.match(t.reply!, /verifica tu organización/)
+  assert.match(t.reply!, /registra tu organización: escribe "registrar"\. Una persona del equipo la verifica/)
   assert.ok(t.steps.some(s => /receiving organization drafted/.test(s.detail)))
 })
 

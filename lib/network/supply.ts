@@ -1,5 +1,6 @@
 import { chooseDelivery, deliveryChoices, publish, reserve } from "./coordinator.ts"
-import { DEMO_DAY, DEMO_NETWORK } from "./demo.ts"
+import { DEMO_DAY } from "./demo.ts"
+import { liveNetwork } from "./live.ts"
 import { matchResource } from "./match.ts"
 import type { Block, Condition, Network, Point, Resource, Tier } from "./types.ts"
 import { characterize, planningWeight, type IccSupply } from "../icc/characterize.ts"
@@ -12,7 +13,13 @@ import type { IccRecord } from "../icc/types.ts"
 // surfaces already render: one row per destination and transport option, feasible or with its blockers.
 
 /** Same shape as the ICC input: the network reads weight from the ICC record, never from a raw count. */
-export type SupplyLike = IccSupply & { condition: Condition }
+export type SupplyLike = IccSupply & {
+  condition: Condition
+  /** Exact pickup point (a whatsapp location pin, or the donor's registered address). Wins over the place name. */
+  point?: Point | null
+  /** A registered donor; its impact zone then applies. Unregistered senders are "intake-donor". */
+  donorId?: string | null
+}
 
 export type LegacyTier = "people" | "transformation" | "valorization"
 
@@ -85,14 +92,14 @@ export function supplyToResource(supply: SupplyLike, text = "", icc?: IccRecord)
   if (count && !record.physical.weightKg) gaps.push({ code: "weight_unknown", message: `Weight unknown: no reference for "${count.value.unit}" of this product. Ask the donor or weigh it` })
   else if (record.physical.weightKg && !weight) gaps.push({ code: "weight_estimated", message: "Weight is only estimated and the planning policy needs a declared or measured weight" })
   else if (weight?.provenance === "estimado") warnings.push({ code: "weight_estimated", message: `Weight estimated ${Math.round(weight.range.min)}–${Math.round(weight.range.max)} kg (${record.physical.weightKg!.method}); confirm on a scale at handoff` })
-  const point = placePoint(supply.location)
-  if (!supply.location) gaps.push({ code: "pickup_location_unknown", message: "Pickup location pending confirmation" })
+  const point = supply.point ?? placePoint(supply.location)
+  if (!supply.location && !supply.point) gaps.push({ code: "pickup_location_unknown", message: "Pickup location pending confirmation" })
   else if (!point) gaps.push({ code: "route_unverified", message: `"${supply.location}" is outside the pilot area or not recognized; a person must place it` })
   if (!Number.isFinite(supply.deadlineHour)) gaps.push({ code: "deadline_unknown", message: "Deadline pending confirmation" })
   const deadline = supply.deadlineHour ?? 18
   const resource: Resource = {
     id: "intake",
-    donorId: "intake-donor",
+    donorId: supply.donorId ?? "intake-donor",
     title: supply.item ?? supply.category ?? "lote",
     item: supply.item ?? "",
     category: supply.category ?? "",
@@ -110,7 +117,7 @@ export function supplyToResource(supply: SupplyLike, text = "", icc?: IccRecord)
 }
 
 /** Every destination in the network for this supply: one row per viable transport option, or one blocked row. */
-export function evaluateSupply(supply: SupplyLike, text = "", network: Network = DEMO_NETWORK): Candidate[] {
+export function evaluateSupply(supply: SupplyLike, text = "", network: Network = liveNetwork()): Candidate[] {
   const { resource, gaps, icc, warnings } = supplyToResource(supply, text)
   const r = resource!
   const at = r.pickupWindow.start
@@ -134,8 +141,8 @@ export function evaluateSupply(supply: SupplyLike, text = "", network: Network =
     for (const q of quotes) {
       rows.push({
         ...base,
-        capacityId: q.vehicleId ?? "pickup",
-        capacity: q.mode === "pickup" ? `${m.name} picks up · free` : q.mode === "courier" ? `${q.label} · quote $${q.costMxn} mxn paid by the receiver · simulated` : `${q.label} · return trip, ${q.detourKm} km detour, $${q.costMxn} mxn · simulated`,
+        capacityId: q.mode === "own_courier" ? "own-courier" : q.vehicleId ?? "pickup",
+        capacity: q.mode === "pickup" ? `${m.name} picks up · free` : q.mode === "own_courier" ? `${m.name} sends its own courier (uber or similar) and pays it` : q.mode === "courier" ? `${q.label} · quote $${q.costMxn} mxn paid by the receiver · simulated` : `${q.label} · return trip, ${q.detourKm} km detour, $${q.costMxn} mxn · simulated`,
         routeKm: q.roadKm,
         routeSource: "straight_line_estimate",
         feasible: blockers.length === 0,
@@ -160,7 +167,7 @@ export type OperationSummary = {
   /** How the held kg is known. An estimate stays labelled until the handoff or receipt measures it. */
   kgProvenance: string
   remainingKg: number
-  mode: "pickup" | "courier" | "backhaul"
+  mode: "pickup" | "own_courier" | "courier" | "backhaul"
   costMxn: number
   status: string
   handoffCode: string | null
@@ -175,7 +182,7 @@ export type OperationSummary = {
  * Pickup is confirmed at once with a handoff code; a courier or backhaul still waits for the receiver
  * to accept the cost and the carrier to confirm capacity. Nothing is dispatched.
  */
-export function openOperation(supply: SupplyLike, text: string, recipientId: string, capacityId: string, network: Network = DEMO_NETWORK): OperationSummary | null {
+export function openOperation(supply: SupplyLike, text: string, recipientId: string, capacityId: string, network: Network = liveNetwork()): OperationSummary | null {
   const { resource, gaps, icc } = supplyToResource(supply, text)
   if (!resource || gaps.length) return null
   const at = resource.pickupWindow.start
@@ -188,14 +195,14 @@ export function openOperation(supply: SupplyLike, text: string, recipientId: str
   c = reserve(c, network, recipientId, Math.min(resource.kg, match.maxKg), at)
   const id = c.reservations[0].id
   const vehicle = network.vehicles.find((v) => v.id === capacityId)
-  const mode = capacityId === "pickup" ? "pickup" : vehicle?.kind === "route" ? "backhaul" : "courier"
+  const mode = capacityId === "pickup" ? "pickup" : capacityId === "own-courier" ? "own_courier" : vehicle?.kind === "route" ? "backhaul" : "courier"
   c = chooseDelivery(c, network, id, mode, at, vehicle?.id ?? null)
   const r = c.reservations[0]
   const clock = (ms: number | null) => (ms === null ? null : new Date(ms - 6 * 3600_000).toISOString().slice(11, 16))
   return {
     recipientId, kg: r.kg, kgProvenance: icc.physical.weightKg?.provenance ?? "desconocido", remainingKg: resource.kg - r.kg, mode, costMxn: r.quote!.costMxn, status: r.status, handoffCode: r.handoffCode,
     holdUntil: clock(r.holdUntil),
-    nextStep: mode === "pickup" ? `pickup code ${r.handoffCode}; the receiver collects it` : `the receiver accepts $${r.quote!.costMxn} mxn, then the carrier confirms capacity`,
+    nextStep: mode === "pickup" ? `pickup code ${r.handoffCode}; the receiver collects it` : mode === "own_courier" ? `pickup code ${r.handoffCode}; the receiver sends its own courier with it` : `the receiver accepts $${r.quote!.costMxn} mxn, then the carrier confirms capacity`,
     notified: c.waves.flatMap((w) => w.notified),
   }
 }

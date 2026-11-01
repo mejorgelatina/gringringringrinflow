@@ -5,9 +5,11 @@ export type InboundMessage = {
   id: string;
   from: string;
   timestamp: string;
-  type: "text" | "image" | "other";
+  type: "text" | "image" | "location" | "other";
   text: string;
   mediaId: string | null;
+  /** A shared location pin (whatsapp "location" message): coordinates plus the place name/address if any. */
+  location?: { lat: number; lng: number; label: string } | null;
 };
 
 /** Meta signs each webhook POST with the app secret (X-Hub-Signature-256: sha256=<hex>). */
@@ -26,7 +28,7 @@ export function verifySubscription(params: URLSearchParams, verifyToken: string 
 }
 
 type Payload = { entry?: { changes?: { value?: { messages?: RawMessage[] } }[] }[] };
-type RawMessage = { id?: string; from?: string; timestamp?: string; type?: string; text?: { body?: string }; image?: { id?: string; caption?: string } };
+type RawMessage = { id?: string; from?: string; timestamp?: string; type?: string; text?: { body?: string }; image?: { id?: string; caption?: string }; location?: { latitude?: number; longitude?: number; name?: string; address?: string } };
 
 /** Extracts messages; status callbacks (sent/delivered/read) carry none and are ignored. */
 export function parseInbound(payload: unknown): InboundMessage[] {
@@ -35,14 +37,16 @@ export function parseInbound(payload: unknown): InboundMessage[] {
     for (const change of entry.changes ?? []) {
       for (const m of change.value?.messages ?? []) {
         if (!m.id || !m.from) continue;
-        const type = m.type === "text" ? "text" : m.type === "image" ? "image" : "other";
+        const loc = m.type === "location" && Number.isFinite(m.location?.latitude) && Number.isFinite(m.location?.longitude) ? m.location! : null;
+        const type = m.type === "text" ? "text" : m.type === "image" ? "image" : loc ? "location" : "other";
         out.push({
           id: m.id,
           from: m.from,
           timestamp: m.timestamp ?? "",
           type,
           text: (type === "text" ? m.text?.body : type === "image" ? m.image?.caption : "")?.slice(0, 5000) ?? "",
-          mediaId: type === "image" ? m.image?.id ?? null : null
+          mediaId: type === "image" ? m.image?.id ?? null : null,
+          location: loc ? { lat: Number(loc.latitude), lng: Number(loc.longitude), label: [loc.name, loc.address].filter(Boolean).join(", ").slice(0, 200) } : null
         });
       }
     }

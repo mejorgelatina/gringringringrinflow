@@ -1,4 +1,5 @@
 import { acceptQuote, chooseDelivery, confirmCapacity, confirmReceipt, deliveryChoices, publish, recordPickup, reserve, tick } from "./coordinator.ts"
+import { carriersEnabled } from "./features.ts"
 import type { Ms, Network, NetworkCase, Participant, Resource, Vehicle } from "./types.ts"
 
 // Synthetic pilot network in a bounded region of mexico city. Every place, name, price and time is invented.
@@ -136,15 +137,22 @@ export type Scenario = { id: ScenarioId; label: string; destination: string; ste
 
 const name = (id: string) => DEMO_PARTICIPANTS.find((p) => p.id === id)?.name ?? id
 
-function choicesText(c: NetworkCase, resId: string, now: Ms): string {
-  const q = deliveryChoices(c, DEMO_NETWORK, resId, now)
+/** The pilot network as the scenarios run it: without carriers (and their vehicles) while carriers are hidden. */
+export function scenarioNetwork(): Network {
+  if (carriersEnabled()) return DEMO_NETWORK
+  return { ...DEMO_NETWORK, vehicles: [], participants: DEMO_PARTICIPANTS.filter((p) => !p.roles.every((r) => r === "carrier")) }
+}
+
+function choicesText(c: NetworkCase, net: Network, resId: string, now: Ms): string {
+  const q = deliveryChoices(c, net, resId, now)
   const line = (x: (typeof q)[number]) =>
-    x.mode === "pickup" ? "· paso por ellos — gratis" : x.mode === "courier" ? `· envíamelo (${x.label}) — $${x.costMxn} mxn` : `· ruta existente (${x.label}) — $${x.costMxn} mxn, desvío ${x.detourKm} km`
+    x.mode === "pickup" ? "· paso por ellos — gratis" : x.mode === "own_courier" ? "· mando mi propio envío (uber u otro) — a mi cargo" : x.mode === "courier" ? `· envíamelo (${x.label}) — $${x.costMxn} mxn` : `· ruta existente (${x.label}) — $${x.costMxn} mxn, desvío ${x.detourKm} km`
   return q.map(line).join("\n")
 }
 
 export function runScenario(id: ScenarioId): Scenario {
-  const net = DEMO_NETWORK
+  const net = scenarioNetwork()
+  const carriers = net.vehicles.length > 0
   const steps: Step[] = []
   const push = (state: NetworkCase, at: Ms, actor: string, title: string, message: Step["message"] = null) => steps.push({ at, actor, title, message, state })
   const r = SCENARIO_RESOURCES[id]
@@ -157,27 +165,32 @@ export function runScenario(id: ScenarioId): Scenario {
     let now = at("17:08")
     c = reserve(c, net, "rec-doctores", 20, now)
     push(c, now, name("rec-doctores"), "el comedor aparta 20 kg (parcial)", { from: "comedor comunitario doctores", to: "grinflow", text: "apartamos 20 kg" })
-    push(c, now, "grinflow", "grinflow pregunta cómo quiere recibir", { from: "grinflow", to: "comedor comunitario doctores", text: `apartaste 20 kg de pan de muerto. ¿cómo quieres recibirlos?\n${choicesText(c, "gf-pan-1103-r1", now)}` })
+    push(c, now, "grinflow", "grinflow pregunta cómo quiere recibir", { from: "grinflow", to: "comedor comunitario doctores", text: `apartaste 20 kg de pan de muerto. ¿cómo quieres recibirlos?\n${choicesText(c, net, "gf-pan-1103-r1", now)}` })
     c = chooseDelivery(c, net, "gf-pan-1103-r1", "pickup", now)
     push(c, now, name("rec-doctores"), "elige pasar por ellos: gratis, se emite código de entrega", { from: "grinflow", to: "comedor comunitario doctores", text: `listo. tu código de entrega es ${c.reservations[0].handoffCode}. muéstralo en la panadería.` })
     now = at("17:15")
     c = reserve(c, net, "rec-narvarte", 10, now)
-    push(c, now, name("rec-narvarte"), "la casa hogar aparta los 10 kg restantes; no tiene vehículo", { from: "grinflow", to: "casa hogar narvarte", text: `apartaste 10 kg. ¿cómo quieres recibirlos?\n${choicesText(c, "gf-pan-1103-r2", now)}` })
-    c = chooseDelivery(c, net, "gf-pan-1103-r2", "courier", now, "veh-moto")
-    const q = c.reservations[1].quote!
-    push(c, now, "grinflow", `cotización de envío: $${q.costMxn} mxn, llegada estimada ${new Date(q.arrivalAt - 6 * 3600_000).toISOString().slice(11, 16)}`)
-    now = at("17:17")
-    c = acceptQuote(c, "gf-pan-1103-r2", "rec-narvarte", now)
-    push(c, now, name("rec-narvarte"), "la casa hogar acepta el costo del envío", { from: "casa hogar narvarte", to: "grinflow", text: "sí, acepto el envío" })
-    now = at("17:19")
-    c = confirmCapacity(c, net, "gf-pan-1103-r2", "op-mensajeria", now)
-    push(c, now, name("op-mensajeria"), "la mensajería confirma capacidad: el envío queda confirmado")
+    push(c, now, name("rec-narvarte"), "la casa hogar aparta los 10 kg restantes; no tiene vehículo", { from: "grinflow", to: "casa hogar narvarte", text: `apartaste 10 kg. ¿cómo quieres recibirlos?\n${choicesText(c, net, "gf-pan-1103-r2", now)}` })
+    if (carriers) {
+      c = chooseDelivery(c, net, "gf-pan-1103-r2", "courier", now, "veh-moto")
+      const q = c.reservations[1].quote!
+      push(c, now, "grinflow", `cotización de envío: $${q.costMxn} mxn, llegada estimada ${new Date(q.arrivalAt - 6 * 3600_000).toISOString().slice(11, 16)}`)
+      now = at("17:17")
+      c = acceptQuote(c, "gf-pan-1103-r2", "rec-narvarte", now)
+      push(c, now, name("rec-narvarte"), "la casa hogar acepta el costo del envío", { from: "casa hogar narvarte", to: "grinflow", text: "sí, acepto el envío" })
+      now = at("17:19")
+      c = confirmCapacity(c, net, "gf-pan-1103-r2", "op-mensajeria", now)
+      push(c, now, name("op-mensajeria"), "la mensajería confirma capacidad: el envío queda confirmado")
+    } else {
+      c = chooseDelivery(c, net, "gf-pan-1103-r2", "own_courier", now)
+      push(c, now, name("rec-narvarte"), "la casa hogar manda su propio uber y lo paga; grinflow emite el código", { from: "grinflow", to: "casa hogar narvarte", text: `listo. dale a tu conductor el código ${c.reservations[1].handoffCode}; lo muestra en la panadería.` })
+    }
     now = at("17:40")
     c = recordPickup(c, "gf-pan-1103-r1", c.reservations[0].handoffCode!, "rec-doctores", now)
     push(c, now, name("rec-doctores"), "el comedor recoge con su código", { from: "panadería la espiga", to: "grinflow", text: "ya pasaron por 20 kg, el código coincidió" })
     now = at("17:52")
-    c = recordPickup(c, "gf-pan-1103-r2", c.reservations[1].handoffCode!, "op-mensajeria", now)
-    push(c, now, name("op-mensajeria"), "la moto recoge 10 kg con código")
+    c = recordPickup(c, "gf-pan-1103-r2", c.reservations[1].handoffCode!, carriers ? "op-mensajeria" : "rec-narvarte", now)
+    push(c, now, carriers ? name("op-mensajeria") : name("rec-narvarte"), carriers ? "la moto recoge 10 kg con código" : "el uber de la casa hogar recoge 10 kg con código")
     now = at("18:05")
     c = confirmReceipt(c, "gf-pan-1103-r1", 20, "rec-doctores", now)
     push(c, now, name("rec-doctores"), "el comedor confirma recepción: 20 kg verificados para personas", { from: "comedor comunitario doctores", to: "grinflow", text: "recibido, 20 kg" })
@@ -190,7 +203,7 @@ export function runScenario(id: ScenarioId): Scenario {
     push(c, c.publishedAt, "grinflow", `no es alimento: personas no aplica. oleada 1 · transformación: ${wave(1)}`, { from: "grinflow", to: "estudio de biomateriales de cáscara", text: `hay ${r.kg} kg de cáscara de huevo limpia, seca y sin residuo en condesa, hoy de 11:00 a 14:00. cumple tus especificaciones. ¿la apartas?` })
     let now = at("11:12")
     c = reserve(c, net, "mak-cascara", 12, now)
-    push(c, now, name("mak-cascara"), "el maker aparta los 12 kg (su capacidad semanal es 20 kg)", { from: "grinflow", to: "estudio de biomateriales de cáscara", text: `apartaste 12 kg. ¿cómo quieres recibirlos?\n${choicesText(c, "gf-cas-1103-r1", now)}` })
+    push(c, now, name("mak-cascara"), "el maker aparta los 12 kg (su capacidad semanal es 20 kg)", { from: "grinflow", to: "estudio de biomateriales de cáscara", text: `apartaste 12 kg. ¿cómo quieres recibirlos?\n${choicesText(c, net, "gf-cas-1103-r1", now)}` })
     c = chooseDelivery(c, net, "gf-cas-1103-r1", "pickup", now)
     push(c, now, name("mak-cascara"), "recoge en origen, como declaró en su registro", { from: "grinflow", to: "estudio de biomateriales de cáscara", text: `tu código de entrega es ${c.reservations[0].handoffCode}.` })
     now = at("12:10")
@@ -205,19 +218,27 @@ export function runScenario(id: ScenarioId): Scenario {
     push(c, c.publishedAt, "grinflow", `ningún maker acepta este material mezclado; la cascada llega a composta: ${wave(1)}`, { from: "grinflow", to: "centro de composta guerrero", text: `hay ${r.kg} kg de orgánico mezclado en mercado medellín, de 12:30 a 15:00. ¿lo apartas?` })
     let now = at("12:40")
     c = reserve(c, net, "cmp-guerrero", 35, now)
-    push(c, now, name("cmp-guerrero"), "la composta aparta los 35 kg; recibe en planta, no recoge", { from: "grinflow", to: "centro de composta guerrero", text: `apartaste 35 kg. ¿cómo quieres recibirlos?\n${choicesText(c, "gf-org-1103-r1", now)}` })
-    c = chooseDelivery(c, net, "gf-org-1103-r1", "backhaul", now, "veh-luis")
-    const q = c.reservations[0].quote!
-    push(c, now, "grinflow", `ruta existente: la camioneta de luis regresa a bodega; desvío ${q.detourKm} km, $${q.costMxn} mxn`)
-    now = at("12:42")
-    c = acceptQuote(c, "gf-org-1103-r1", "cmp-guerrero", now)
-    push(c, now, name("cmp-guerrero"), "la composta acepta el costo del desvío", { from: "centro de composta guerrero", to: "grinflow", text: "va, aceptamos" })
-    now = at("12:45")
-    c = confirmCapacity(c, net, "gf-org-1103-r1", "op-luis", now)
-    push(c, now, name("op-luis"), "luis confirma espacio en su regreso", { from: "luis · camioneta de reparto", to: "grinflow", text: "sí tengo espacio, paso por ahí" })
-    now = at("13:05")
-    c = recordPickup(c, "gf-org-1103-r1", c.reservations[0].handoffCode!, "op-luis", now)
-    push(c, now, name("op-luis"), "luis recoge en el mercado con código")
+    push(c, now, name("cmp-guerrero"), "la composta aparta los 35 kg; recibe en planta, no recoge", { from: "grinflow", to: "centro de composta guerrero", text: `apartaste 35 kg. ¿cómo quieres recibirlos?\n${choicesText(c, net, "gf-org-1103-r1", now)}` })
+    if (carriers) {
+      c = chooseDelivery(c, net, "gf-org-1103-r1", "backhaul", now, "veh-luis")
+      const q = c.reservations[0].quote!
+      push(c, now, "grinflow", `ruta existente: la camioneta de luis regresa a bodega; desvío ${q.detourKm} km, $${q.costMxn} mxn`)
+      now = at("12:42")
+      c = acceptQuote(c, "gf-org-1103-r1", "cmp-guerrero", now)
+      push(c, now, name("cmp-guerrero"), "la composta acepta el costo del desvío", { from: "centro de composta guerrero", to: "grinflow", text: "va, aceptamos" })
+      now = at("12:45")
+      c = confirmCapacity(c, net, "gf-org-1103-r1", "op-luis", now)
+      push(c, now, name("op-luis"), "luis confirma espacio en su regreso", { from: "luis · camioneta de reparto", to: "grinflow", text: "sí tengo espacio, paso por ahí" })
+      now = at("13:05")
+      c = recordPickup(c, "gf-org-1103-r1", c.reservations[0].handoffCode!, "op-luis", now)
+      push(c, now, name("op-luis"), "luis recoge en el mercado con código")
+    } else {
+      c = chooseDelivery(c, net, "gf-org-1103-r1", "own_courier", now)
+      push(c, now, name("cmp-guerrero"), "la composta manda su propio envío y lo paga; grinflow emite el código", { from: "grinflow", to: "centro de composta guerrero", text: `listo. tu código de entrega es ${c.reservations[0].handoffCode}; tu conductor lo muestra en el mercado.` })
+      now = at("13:05")
+      c = recordPickup(c, "gf-org-1103-r1", c.reservations[0].handoffCode!, "cmp-guerrero", now)
+      push(c, now, name("cmp-guerrero"), "el envío de la composta recoge en el mercado con código")
+    }
     now = at("13:30")
     c = confirmReceipt(c, "gf-org-1103-r1", 34, "cmp-guerrero", now)
     push(c, now, name("cmp-guerrero"), "la composta confirma 34 kg recibidos y gestionados")

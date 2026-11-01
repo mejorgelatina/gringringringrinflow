@@ -19,6 +19,9 @@ const COPY = {
     sending: "sending…",
     restart: "start over",
     empty: "pick one to start, or just write.",
+    register: "register my organization",
+    registerHint: "once: name, address, hours, contact",
+    registerOpener: "i want to register my organization",
   },
   es: {
     give: "tengo comida para donar",
@@ -32,8 +35,15 @@ const COPY = {
     sending: "enviando…",
     restart: "empezar de nuevo",
     empty: "elige una opción para empezar, o simplemente escribe.",
+    register: "registrar mi organización",
+    registerHint: "una sola vez: nombre, dirección, horario, contacto",
+    registerOpener: "quiero registrar mi organización",
   },
 } as const
+
+function newSession(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `s-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
 
 async function toDataUrl(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file)
@@ -55,6 +65,8 @@ export function WebChat({ initialIntent, initialLang, whatsapp }: { initialInten
   const [error, setError] = useState("")
   const bodyRef = useRef<HTMLDivElement>(null)
   const started = useRef(false)
+  // The server remembers this conversation by a random id per tab, so an answer completes the last message.
+  const [session, setSession] = useState(() => newSession())
   const t = COPY[lang]
 
   useEffect(() => {
@@ -73,7 +85,7 @@ export function WebChat({ initialIntent, initialLang, whatsapp }: { initialInten
       const r = await fetch("/api/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: message.trim(), history, ...(photo ? { image: photo } : {}) }),
+        body: JSON.stringify({ text: message.trim(), history, session, ...(photo ? { image: photo } : {}) }),
       })
       const d = await r.json()
       if (!r.ok || !d.ok) throw new Error(d.message || "something went wrong")
@@ -134,6 +146,13 @@ export function WebChat({ initialIntent, initialLang, whatsapp }: { initialInten
                   <span className="mt-1 block text-sm text-muted-foreground">{i.hint}</span>
                 </button>
               ))}
+              <button
+                onClick={() => send(t.registerOpener, null)}
+                className="rounded-lg border border-dashed border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-secondary"
+              >
+                <span className="block font-display text-base">{t.register}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">{t.registerHint}</span>
+              </button>
             </div>
           )}
           {chat.map((b, i) => (
@@ -196,7 +215,7 @@ export function WebChat({ initialIntent, initialLang, whatsapp }: { initialInten
             />
             {image && <img src={image} alt="photo preview" className="h-9 w-9 rounded-md object-cover" />}
             {chat.length > 0 && (
-              <button type="button" onClick={() => { setChat([]); setError("") }} className="px-2 py-2 text-sm text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={() => { setChat([]); setError(""); setSession(newSession()) }} className="px-2 py-2 text-sm text-muted-foreground hover:text-foreground">
                 {t.restart}
               </button>
             )}

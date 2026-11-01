@@ -66,12 +66,30 @@ export function backhaulQuote(resource: Resource, dest: Participant, vehicle: Ve
   return { quote: { mode: "backhaul", vehicleId: vehicle.id, label: vehicle.label, costMxn, roadKm: roadKm(resource.location, dest.location), detourKm, ...s, simulated: true }, block: null }
 }
 
+/**
+ * The receiver sends its own courier (uber or a messenger it already uses) and pays it directly.
+ * grinflow quotes nothing; it checks the timing fits and issues a handoff code. A regular car can't keep
+ * the cold chain, so refrigerated lots are blocked here.
+ */
+export function ownCourierQuote(resource: Resource, dest: Participant, now: Ms): { quote: Quote | null; block: Block | null } {
+  if (resource.refrigerationNeeded) return { quote: null, block: { code: "needs_refrigeration", message: "Requiere transporte refrigerado." } }
+  const eta = etaMinutes(resource.location, dest.location, Math.max(now, resource.pickupWindow.start))
+  const s = slot(resource, dest, now, eta)
+  if (!s) return { quote: null, block: { code: "no_slot", message: "No hay horario de envío compatible con la ventana de recepción." } }
+  return {
+    quote: { mode: "own_courier", vehicleId: null, label: `${dest.name} manda su propio envío (uber u otro), a su cargo`, costMxn: 0, roadKm: roadKm(resource.location, dest.location), detourKm: 0, ...s, simulated: false },
+    block: null,
+  }
+}
+
 /** Every delivery option open to this destination for `kg`, cheapest first. */
 export function deliveryOptions(resource: Resource, dest: Participant, vehicles: Vehicle[], kg: number, now: Ms, zone: "a" | "b" | "c"): { quotes: Quote[]; blocks: Block[] } {
   const quotes: Quote[] = []
   const blocks: Block[] = []
   const take = (r: { quote: Quote | null; block: Block | null }) => (r.quote ? quotes.push(r.quote) : r.block && blocks.push(r.block))
   if (zone === "a") take(pickupQuote(resource, dest, now))
+  // No coordinated carriers in this network: the receiver can still send its own courier.
+  if (zone !== "c" && vehicles.length === 0) take(ownCourierQuote(resource, dest, now))
   if (zone !== "c") {
     for (const v of vehicles) {
       if (v.kind === "courier") take(courierQuote(resource, dest, v, kg, now))

@@ -1,3 +1,5 @@
+import { registryStore } from "@/lib/registry/store";
+import { refreshLiveNetwork } from "@/lib/registry/network";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { agentWiring } from "@/lib/agent/deps";
@@ -17,6 +19,8 @@ export const runtime = "nodejs";
 
 /** A person moves a stopped run: the donor answers, an operator inspects, approves or rejects. */
 export async function POST(request: Request) {
+  // Verified registrations join the network every channel evaluates against.
+  await refreshLiveNetwork(registryStore());
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_request", message: "That action is not valid for this run." }, { status: 400 });
   const run = unseal(parsed.data.token);

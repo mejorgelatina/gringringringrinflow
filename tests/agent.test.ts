@@ -208,7 +208,7 @@ test("AG-T2: the cascade is enforced in code: compost is refused while a maker o
   const planner = scripted([
     call("extract_event"),
     call("find_matches"),
-    call("propose_match", { recipientId: "cmp-guerrero", capacityId: "veh-luis", rationale: "12 kg de cáscara a composta.", quotes: ["12 kg de cáscara de huevo"] }),
+    call("propose_match", { recipientId: "cmp-guerrero", capacityId: "own-courier", rationale: "12 kg de cáscara a composta.", quotes: ["12 kg de cáscara de huevo"] }),
     call("propose_match", { recipientId: "mak-cascara", capacityId: "pickup", rationale: "12 kg de cáscara de huevo para el estudio.", quotes: ["12 kg de cáscara de huevo"] }),
   ])
   const run = await startRun(SHELLS, undefined, offline(), planner)
@@ -218,7 +218,7 @@ test("AG-T2: the cascade is enforced in code: compost is refused while a maker o
   const bread = scripted([
     call("extract_event"),
     call("find_matches"),
-    call("propose_match", { recipientId: "cmp-guerrero", capacityId: "veh-van-envio", rationale: "20 cajas de pan a composta.", quotes: ["20 cajas de pan"] }),
+    call("propose_match", { recipientId: "cmp-guerrero", capacityId: "own-courier", rationale: "20 cajas de pan a composta.", quotes: ["20 cajas de pan"] }),
   ])
   const refused = await startRun(BREAD, undefined, offline(), bread)
   assert.equal(refused.proposal, null)
@@ -235,11 +235,24 @@ test("AG-N1: the agent answers with the network engine: delivery options carry w
   const run = await startRun(BREAD, undefined, offline(), createScriptedPlanner())
   assert.equal(run.proposal?.recipientId, "rec-doctores")
   assert.match(run.proposal!.capacity, /picks up · free/)
-  assert.ok(run.candidates?.some(c => c.capacityId === "veh-van-envio" && /paid by the receiver/.test(c.capacity)))
-  // ~40 kg of bread (20 boxes × a unit reference) does not fit a motorcycle courier, so it is not offered
-  assert.ok(!run.candidates?.some(c => c.capacityId === "veh-moto" && c.feasible))
+  // Carriers are hidden until validated: a receiver can send its own courier (an uber) and pays it; grinflow quotes nothing.
+  assert.ok(run.candidates?.some(c => c.capacityId === "own-courier" && /pays it/.test(c.capacity)))
+  assert.ok(!run.candidates?.some(c => c.capacityId.startsWith("veh-")))
   const far = await startRun("Tenemos 20 cajas de pan fresco en la colonia Polanco, recoger antes de las 6 pm.", undefined, offline(), createScriptedPlanner())
   assert.ok(far.candidates?.every(c => !c.feasible && c.blockers.some(b => b.code === "route_unverified")))
+})
+
+test("AG-N1b: with carriers switched on, quoted couriers come back and still respect capacity", async () => {
+  process.env.NEXT_PUBLIC_GRINFLOW_CARRIERS = "on"
+  try {
+    const run = await startRun(BREAD, undefined, offline(), createScriptedPlanner())
+    assert.ok(run.candidates?.some(c => c.capacityId === "veh-van-envio" && /paid by the receiver/.test(c.capacity)))
+    // ~40 kg of bread (20 boxes × a unit reference) does not fit a motorcycle courier, so it is not offered
+    assert.ok(!run.candidates?.some(c => c.capacityId === "veh-moto" && c.feasible))
+    assert.ok(!run.candidates?.some(c => c.capacityId === "own-courier"))
+  } finally {
+    delete process.env.NEXT_PUBLIC_GRINFLOW_CARRIERS
+  }
 })
 
 test("AG-N2: sign-off opens the operation in the network: hold, delivery choice and handoff code", async () => {

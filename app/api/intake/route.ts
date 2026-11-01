@@ -1,3 +1,5 @@
+import { registryStore } from "@/lib/registry/store";
+import { refreshLiveNetwork } from "@/lib/registry/network";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAcceptableImageDataUrl } from "@/lib/meta/photo-policy";
@@ -14,6 +16,8 @@ const Body = z.object({
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  // Verified registrations join the network every channel evaluates against.
+  await refreshLiveNetwork(registryStore());
   const requestId = crypto.randomUUID();
   try {
     const { message, image, photoFixture } = Body.parse(await request.json());

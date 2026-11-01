@@ -1,0 +1,20 @@
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 16px}
+.bar input{flex:1;min-width:200px;border:1px solid var(--gf-line);border-radius:8px;padding:10px 12px;font:14px var(--gf-font-sans)}
+.note{font-size:13px;color:var(--gf-muted);line-height:1.5;margin:0 0 16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{background:#fff;border:1px solid var(--gf-line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h3{font:700 17px var(--gf-font-display);margin:0}
+.card dl{display:grid;grid-template-columns:90px minmax(0,1fr);gap:4px 10px;margin:0;font-size:13px}
+.card dt{color:var(--gf-muted)}
+.card dd{margin:0;overflow-wrap:anywhere}
+.pill{display:inline-block;border-radius:100px;padding:3px 9px;font:12px var(--gf-font-mono)}
+.pending{background:#fff2d9;color:#8c6824}
+.verified{background:var(--gf-green-100);color:var(--gf-green-700)}
+.rejected{background:#f6e3df;color:#9a4a3d}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.actions button{font-size:13px;padding:8px 10px}
+.inbox{width:100%;border-collapse:collapse;font-size:13px}
+.inbox th,.inbox td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--gf-line);vertical-align:top}
+.inbox th{font:12px var(--gf-font-mono);color:var(--gf-muted)}
+.wrap{overflow-x:auto}
+.empty{color:var(--gf-muted);font-size:13px}

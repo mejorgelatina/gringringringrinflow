@@ -2,6 +2,7 @@ import { firebaseEnabled } from "@/lib/firebase/admin";
 import { intakeDeps } from "@/lib/intake/deps";
 import { downloadMediaAsDataUrl, graphConfig, sendText } from "./graph";
 import type { HandlerContext } from "./handler";
+import { registryStore } from "@/lib/registry/store";
 
 /** Live context for the real webhook. Replies need credentials AND an explicit flag, like Meta model calls. */
 export function liveContext(): HandlerContext {
@@ -12,7 +13,8 @@ export function liveContext(): HandlerContext {
     allowlist: process.env.WHATSAPP_ALLOWED_SENDERS,
     send: cfg && repliesEnabled ? (to, body) => sendText(to, body, cfg) : null,
     fetchMedia: cfg ? (id) => downloadMediaAsDataUrl(id, cfg) : null,
-    source: "webhook"
+    source: "webhook",
+    store: registryStore()
   };
 }
 
@@ -25,6 +27,7 @@ export function whatsappStatus() {
     repliesEnabled: process.env.WHATSAPP_REPLIES_ENABLED === "true",
     allowlistSet: Boolean(process.env.WHATSAPP_ALLOWED_SENDERS),
     metaCallsEnabled: intakeDeps().useMeta,
-    firebaseSet: firebaseEnabled()
+    firebaseSet: firebaseEnabled(),
+    memory: registryStore().kind
   };
 }
