@@ -55,15 +55,38 @@ Preliminary, per lot. The network engine still decides with capacity, zones, win
 
 grinflow never certifies food safety. "elegible" for people means the donor or a person stated the condition; the reason text says so. A photo cannot show temperature, microbiological contamination or storage history.
 
-## composite index
+## icc score and bands (`lib/icc/score.ts`)
 
-`composite()` keeps the components (identity, condition + provenance, photo grade, risk flags, pending checks, weight and volume with provenance) and returns **no score**. The formula, scales and weights (`ICC_WEIGHTS` in `lib/icc/spec.ts`) are a product decision that has not been made; they are `null` on purpose. A score of 82 means nothing until it is specified and can be audited.
+jor's definition (2026-11-01): a 0–100 score from three factors, and three bands that decide which part of the network sees the lot.
+
+| factor | from | scale (placeholder) |
+| --- | --- | --- |
+| tiempo · vida útil restante | hours since preparation (declared "hecho hace 2 horas", or estimated from "fresco / del día" ≈ 6 h, "de ayer" ≈ 24 h) against `SHELF_LIFE_HOURS` by category and storage | `TIME_SCALE`: 0 h → 0, 4 h → 25, 12 h → 50, 24 h → 70, 48 h → 85, ≥ 72 h → 100 |
+| integridad y empaque | photo grade and visible issues, damage the donor mentions, declared packaging (sellado, empacado) | no visible issues 100 · sealed, no photo 85 · minor damage 55 · severe damage or inedible 0 |
+| historial térmico | declared storage for perishables (lácteos, proteína, prepared food) | cold chain declared 100 · ambient 15 · not perishable 100 (rule) |
+
+- Weights: **provisional equal thirds** (`ICC_WEIGHTS`, `ICC_WEIGHTS_STATUS = "provisional"`), pending jor's decision. Set a weight to null and the score turns off.
+- A factor with no evidence counts as 50 (neutral). The record also shows the range the score could take once it is known (unknown = 0 … unknown = 100).
+- Every factor keeps its value, provenance and basis, so a score can be taken apart.
+
+| band | score | who sees it |
+| --- | --- | --- |
+| alto | 80–100 | food banks and high-capacity kitchens (and every people destination) |
+| medio | 40–79 | only kitchens and shelters that prepare the same day, in zone a (short ETA). A receiver can opt out with `need.iccBands: ["alto"]` (demo: casa hogar narvarte) |
+| bajo | 0–39 | out of the food route: transformation or compost (the cascade continues) |
+
+Safety gates. The score only pushes a lot down, never up past the rules:
+- inedible or past prime → capped at 39 (bajo);
+- condition unconfirmed → band `pendiente` until the donor or a person confirms it, whatever the number says;
+- no `alto` while any factor is missing, or while the condition is not declared or verified.
+
+What the score is not: a food-safety certification. It orders and filters what the network offers, with the evidence it has; it does not show temperature, contamination or storage history that nobody recorded. "grinflow audited food safety" is not a claim the product can make; "grinflow recorded what was declared, estimated, measured and verified, and who approved" is.
 
 ## what is placeholder
 
 - `UNIT_REFERENCES` in `lib/icc/spec.ts`: kg and m³ per box, crate, sack or container. Demo values, not measured. They must be calibrated against scale readings per donor and package type.
-- `ICC_WEIGHTS`: null.
-- Shelf life: not estimated.
+- `ICC_WEIGHTS`: provisional equal thirds. `ICC_BANDS` (80 / 40) come from jor's examples.
+- `SHELF_LIFE_HOURS`, `TIME_SCALE` and the integrity and thermal points: demo values, to be replaced with food-safety criteria.
 - Cold-chain categories: lácteos, proteína (`PLANNING_POLICY.coldChainCategories`).
 
 ## the agent and ICC
@@ -91,7 +114,10 @@ In all three, no value is medido or verificado unless a person or an instrument 
 
 ## open decisions for the product spec
 
-1. Composite formula, scales per component, weights, and the eligibility thresholds that use them.
+1. Final factor weights and scales; whether bands 80/40 hold; the shelf-life table by product and storage (needs a food-safety specialist).
 2. Who may mark a value verificado (operator, receiver, a sanitary authority) and with what evidence.
 3. Whether people routes may plan with an estimated weight, or must wait for a declared one.
 4. Unit references per donor (a bakery's box is not a supermarket's box).
+5. Temperature/time decay curves per product (jor's "motor de decaimiento"): the time factor is a step toward it, not the curve.
+6. Immutable audit trail: who approved what, with the ICC at that moment. Today runs are sealed and signed (`lib/agent/state.ts`) and persistence is optional Firestore; there are no database triggers or RLS in grinflow yet.
+7. Allocation across several vehicles and receivers at once (knapsack + routing): today each delivery option is checked per vehicle and a lot is split by waves, not optimized jointly.

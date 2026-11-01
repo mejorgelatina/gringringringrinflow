@@ -3,7 +3,7 @@ import { test } from "node:test"
 
 import { characterize, planningWeight } from "../lib/icc/characterize.ts"
 import { intakeMetrics } from "../lib/icc/metrics.ts"
-import { ICC_WEIGHTS, UNIT_REFERENCES } from "../lib/icc/spec.ts"
+import { ICC_WEIGHTS_STATUS, UNIT_REFERENCES } from "../lib/icc/spec.ts"
 import type { IccRecord } from "../lib/icc/types.ts"
 import { confirmIntake, processIntake, type IntakeDeps } from "../lib/intake/process.ts"
 import { localJudge } from "../lib/agent/judge.ts"
@@ -124,13 +124,44 @@ test("eligibility: people / transformation / compost each say what qualifies the
   assert.equal(cold.eligibility.people.status, "elegible")
 })
 
-test("composite index: no weights are invented, so there is no score, only its components", () => {
-  assert.ok(Object.values(ICC_WEIGHTS).every((w) => w === null))
-  const icc = characterize({ channel: "network", text: "20 cajas de pan", supply: { item: "pan", category: "panificados", quantity: 20, unit: "caja", quantityBasis: "stated", condition: "edible", deadlineHour: 18, location: "roma" } })
-  assert.equal(icc.composite.score, null)
-  assert.equal(icc.composite.status, "pendiente_especificacion")
-  assert.ok(icc.composite.components.some((c) => c.dimension === "physical" && /estimado/.test(c.value)))
+test("icc score: three factors with provenance, provisional weights, and a range while a factor is missing", () => {
+  assert.equal(ICC_WEIGHTS_STATUS, "provisional")
+  const icc = characterize({ channel: "network", text: "20 cajas de pan fresco", supply: { item: "pan", category: "panificados", quantity: 20, unit: "caja", quantityBasis: "stated", condition: "edible", deadlineHour: 18, location: "roma" } })
+  const c = icc.composite
+  assert.equal(c.status, "calculado")
+  assert.deepEqual(c.factors.map((f) => f.factor), ["tiempo", "integridad", "termico"])
+  assert.equal(c.factors[0].provenance, "estimado") // "fresco" is the donor's word for today, not a timestamp
+  assert.equal(c.factors[1].value, null) // no photo, no packaging: unknown, not assumed
+  assert.ok(c.range!.min < c.score! && c.score! < c.range!.max)
+  assert.equal(c.band, "medio") // never "alto" with a factor missing
+  assert.match(c.reason, /sin banda alta mientras falte: integridad|integridad sin dato/)
   assert.ok(UNIT_REFERENCES.every((u) => /placeholder/.test(u.note)))
+})
+
+test("icc bands: full evidence reaches alto; perishables out of the cold chain fall to bajo; safety caps the score", async () => {
+  const alto = await processIntake("Tenemos 40 kg de pan fresco sellado, hecho hace 2 horas, en la colonia Roma, antes de las 6 pm", JPEG, deps, "clean")
+  assert.equal(alto.icc!.composite.band, "alto")
+  assert.ok(alto.icc!.composite.score! >= 80)
+  const warm = characterize({ channel: "network", text: "3 cajas de leche en buen estado a temperatura ambiente desde ayer", supply: { item: "leche", category: "lacteos", quantity: 3, unit: "caja", quantityBasis: "stated", condition: "edible", deadlineHour: 18, location: "roma" } })
+  assert.equal(warm.composite.band, "bajo")
+  const eggs = characterize({ channel: "network", text: "3 cajas de huevos echados a perder", supply: { item: "huevos", category: "proteina", quantity: 3, unit: "caja", quantityBasis: "stated", condition: "inedible", deadlineHour: 18, location: "roma" } })
+  assert.equal(eggs.composite.band, "bajo")
+  assert.ok(eggs.composite.range!.max < 40)
+  const unknown = characterize({ channel: "network", text: "20 cajas de pan del día", supply: { item: "pan", category: "panificados", quantity: 20, unit: "caja", quantityBasis: "stated", condition: "unknown", deadlineHour: 18, location: "roma" } })
+  assert.equal(unknown.composite.band, "pendiente") // a high score never stands in for a confirmed condition
+})
+
+test("icc routing: bajo leaves the food route; medio only reaches close same-day kitchens; alto-only receivers skip medio", async () => {
+  const medio = await processIntake("Tenemos 20 cajas de pan fresco en la colonia Roma, antes de las 6 pm", undefined, deps)
+  assert.equal(medio.icc!.composite.band, "medio")
+  const narvarte = medio.candidates.filter((c) => c.recipientId === "rec-narvarte")
+  assert.ok(narvarte.every((c) => !c.feasible && c.blockers.some((b) => b.code === "icc_band_not_accepted")))
+  assert.ok(medio.candidates.some((c) => c.recipientId === "rec-doctores" && c.feasible))
+  const alto = await processIntake("Tenemos 40 kg de pan fresco sellado, hecho hace 2 horas, en la colonia Roma, antes de las 6 pm", JPEG, deps, "clean")
+  assert.ok(!alto.candidates.some((c) => c.blockers.some((b) => b.code.startsWith("icc_"))), "alto is not filtered by band")
+  const warm = await processIntake("Tenemos 3 cajas de leche en buen estado a temperatura ambiente desde ayer, en la colonia Roma, antes de las 6 pm", undefined, deps)
+  assert.equal(warm.icc!.composite.band, "bajo")
+  assert.ok(warm.candidates.filter((c) => c.tier === "people").every((c) => !c.feasible))
 })
 
 // ── the agent: asks only for what is missing, never invents a weight ─────────────

@@ -38,6 +38,11 @@ export type Need = {
   selfPickup: boolean
   /** How far its own pickup reaches, in operational minutes. */
   selfPickupMaxMinutes: number
+  /**
+   * ICC bands a people destination takes. "alto": food banks and high-capacity kitchens. "medio": same-day
+   * kitchens and shelters close by (zone a only). Default: both. "bajo" never goes to people.
+   */
+  iccBands?: ("alto" | "medio")[]
   notes?: string
 }
 
@@ -115,6 +120,8 @@ export type Resource = {
   pickupWindow: TimeWindow
   refrigerationNeeded: boolean
   rawMessage?: string
+  /** The lot's ICC score and band, when it was characterized. Filters people destinations; never opens one. */
+  icc?: { score: number | null; band: "alto" | "medio" | "bajo" | "pendiente" | null }
 }
 
 export type ServiceArea = {

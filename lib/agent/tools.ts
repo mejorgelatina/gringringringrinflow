@@ -235,6 +235,7 @@ export function iccSummary(run: AgentRun) {
     risks: i.risk.flags.map(f => f.label),
     pendingVerifications: i.risk.pendingVerifications,
     missing: i.missing.map(m => `${m.field} (${m.askWho}): ${m.why}`),
+    iccScore: i.composite.score == null ? "no score" : `${i.composite.score}/100 · band ${i.composite.band} · ${i.composite.reason}`,
     eligibility: Object.fromEntries(Object.entries(i.eligibility).map(([k, e]) => [k, `${e.status}${e.needs.length ? ` · needs ${e.needs.join("; ")}` : ""}`])),
   };
 }

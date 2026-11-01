@@ -104,6 +104,7 @@ export function supplyToResource(supply: SupplyLike, text = "", icc?: IccRecord)
     location: point ?? { lat: 0, lng: 0 },
     pickupWindow: { start: hour(Math.max(0, deadline - 3)), end: hour(deadline) },
     refrigerationNeeded: false,
+    icc: { score: record.composite.score, band: record.composite.band },
   }
   return { resource, gaps, icc: record, warnings }
 }

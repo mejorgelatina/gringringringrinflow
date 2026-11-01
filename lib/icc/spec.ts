@@ -1,22 +1,41 @@
-import type { CompositeIndex, IccRecord } from "./types.ts"
 
 // The parts of ICC that are product decisions, kept in one place so they can be formalized without
 // touching the code that collects evidence. Nothing here is calibrated. Every number is a demo
 // placeholder until it is checked against scale readings and verified outcomes.
 
-export const ICC_SPEC_VERSION = "icc-0.1-borrador"
+export const ICC_SPEC_VERSION = "icc-0.2-borrador"
 
 /**
- * Composite index weights. Deliberately null: a score of 82 means nothing until the formula, scales and
- * weights are specified (docs/ICC.md, "open decisions"). While any weight is null, `composite()` returns
- * no score, only the components.
+ * ICC score, 0 to 100, from three factors jor defined (2026-11-01): time (remaining shelf life), physical
+ * integrity and packaging, thermal and sanitary history. The weights are PROVISIONAL (equal thirds) until
+ * jor sets them; change them here only. A null weight turns the score off and leaves only the factors.
  */
-export const ICC_WEIGHTS: Record<"product" | "quality" | "risk" | "physical", number | null> = {
-  product: null,
-  quality: null,
-  risk: null,
-  physical: null,
+export type IccFactor = "tiempo" | "integridad" | "termico"
+export const ICC_WEIGHTS: Record<IccFactor, number | null> = { tiempo: 1 / 3, integridad: 1 / 3, termico: 1 / 3 }
+export const ICC_WEIGHTS_STATUS: "provisional" | "definitiva" = "provisional"
+
+/** Bands from jor's examples: alto 80–100, medio 40–79, bajo 0–39. */
+export const ICC_BANDS = { alto: 80, medio: 40 }
+
+/** A factor with no evidence counts as this (neutral), and the band can never be "alto" with any factor missing. */
+export const ICC_UNKNOWN_FACTOR = 50
+
+/**
+ * Hours a product stays usable for people from preparation or harvest, by category and storage. DEMO
+ * PLACEHOLDERS, not food-safety values: replace with criteria from a food-safety specialist.
+ */
+export const SHELF_LIFE_HOURS: Record<string, { frio: number; ambiente: number }> = {
+  panificados: { frio: 72, ambiente: 48 },
+  verduras: { frio: 120, ambiente: 72 },
+  frutas: { frio: 120, ambiente: 72 },
+  lacteos: { frio: 120, ambiente: 4 },
+  proteina: { frio: 48, ambiente: 2 },
+  abarrotes: { frio: 2000, ambiente: 2000 },
+  comida: { frio: 48, ambiente: 4 },
 }
+
+/** Remaining hours → time factor. Piecewise linear between these points. Placeholder scale. */
+export const TIME_SCALE: [number, number][] = [[0, 0], [4, 25], [12, 50], [24, 70], [48, 85], [72, 100]]
 
 /**
  * Reference weight and volume per unit, used only to estimate (provenance "estimado", confidence "baja").
@@ -47,23 +66,6 @@ export const PLANNING_POLICY = {
   planWithEstimatedWeight: true,
   /** Categories where the people route needs a declared storage condition (cold chain). */
   coldChainCategories: ["lacteos", "proteina"] as string[],
-}
-
-export function composite(record: Omit<IccRecord, "composite">): CompositeIndex {
-  const components: CompositeIndex["components"] = [
-    { dimension: "product", signal: "identidad", value: record.product.item ?? record.product.category ?? "sin identificar" },
-    { dimension: "quality", signal: "condición", value: `${record.quality.condition.value} · ${record.quality.condition.provenance}` },
-    ...(record.quality.visual ? [{ dimension: "quality" as const, signal: "foto", value: record.quality.visual.value }] : []),
-    { dimension: "risk", signal: "alertas", value: record.risk.flags.map((f) => f.code).join(", ") || "ninguna" },
-    { dimension: "risk", signal: "por verificar", value: String(record.risk.pendingVerifications.length) },
-    { dimension: "physical", signal: "peso", value: record.physical.weightKg ? `${fmtRange(record.physical.weightKg.value)} kg · ${record.physical.weightKg.provenance}` : "desconocido" },
-    { dimension: "physical", signal: "volumen", value: record.physical.volumeM3 ? `${fmtRange(record.physical.volumeM3.value, 2)} m³ · ${record.physical.volumeM3.provenance}` : "desconocido" },
-  ]
-  const ES: Record<string, string> = { product: "producto", quality: "calidad", risk: "riesgo", physical: "físico" }
-  const unset = Object.entries(ICC_WEIGHTS).filter(([, w]) => w === null).map(([k]) => ES[k])
-  return unset.length
-    ? { score: null, status: "pendiente_especificacion", reason: `faltan las ponderaciones de ${unset.join(", ")} en la especificación (docs/ICC.md); no se inventan`, components }
-    : { score: null, status: "pendiente_especificacion", reason: "ponderaciones definidas, pero la fórmula y las escalas por componente aún no están especificadas", components }
 }
 
 export function fmtRange(r: { min: number; max: number }, digits = 0): string {

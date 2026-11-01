@@ -1,4 +1,5 @@
-import { composite, ICC_SPEC_VERSION, PLANNING_POLICY, UNIT_REFERENCES, type UnitReference } from "./spec.ts"
+import { composite } from "./score.ts"
+import { ICC_SPEC_VERSION, PLANNING_POLICY, UNIT_REFERENCES, type UnitReference } from "./spec.ts"
 import type { Assessed, Channel, Condition, DestinationEligibility, Evidence, IccRecord, MissingField, Provenance, Range, RiskFlag, Tier } from "./types.ts"
 
 // One function turns what a channel collected into an ICC record. WhatsApp, /send, /intake, /agent and
@@ -168,8 +169,15 @@ function quality(input: CharacterizeInput, at: string) {
   const storageMatch = /(refrigerad[oa]s?|en refri|en fr[ií]o|congelad[oa]s?|a temperatura ambiente|en bodega|en c[aá]mara)/.exec(t)
   const storage = storageMatch ? assessed(storageMatch[1], "declarado", "almacenamiento dicho por el donante", [{ kind: "texto", ref: storageMatch[1] }], at) : null
   const hoursMatch = /(\d+)\s*horas?/.exec(t)
-  const hoursSincePrep = hoursMatch && /(prepar|hech|cocin|cosech)/.test(t) ? assessed(Number(hoursMatch[1]), "declarado", "tiempo desde preparación dicho por el donante", [{ kind: "texto", ref: hoursMatch[0] }], at) : null
-  const packagingWord = /(empacad[oa]s?|en bolsas?|en cajas?|en charolas?|a granel|en costal(?:es)?)/.exec(t)
+  const todayMatch = /(del dia|de hoy|hecho hoy|recien hech[oa]s?|recien horneado|fresc[oa]s?)/.exec(t)
+  const yesterdayMatch = /(desde ayer|de ayer|del dia anterior)/.exec(t)
+  // Only explicit words count. "fresco" / "del día" is the donor's word for today, an estimate of ~0–12 h.
+  const hoursSincePrep = hoursMatch && /(prepar|hech|cocin|cosech|horne)/.test(t)
+    ? assessed(Number(hoursMatch[1]), "declarado", "tiempo desde preparación dicho por el donante", [{ kind: "texto", ref: hoursMatch[0] }], at)
+    : yesterdayMatch ? assessed(24, "estimado", `"${yesterdayMatch[1]}": ~24 h desde preparación`, [{ kind: "texto", ref: yesterdayMatch[1] }], at)
+    : todayMatch ? assessed(6, "estimado", `"${todayMatch[1]}": producto de hoy, ~6 h desde preparación`, [{ kind: "texto", ref: todayMatch[1] }], at)
+    : null
+  const packagingWord = /(sellad[oa]s?|cerrad[oa]s?|empacad[oa]s?|en bolsas?|en cajas?|en charolas?|a granel|en costal(?:es)?)/.exec(t)
   const photoPackaging = photo?.status === "assessed" ? photo.assessment.visible_items.find((v) => v.packaging)?.packaging ?? null : null
   const packaging = packagingWord ? assessed(packagingWord[1], "declarado", "empaque dicho por el donante", [{ kind: "texto", ref: packagingWord[1] }], at) : photoPackaging ? assessed(photoPackaging, "estimado", "empaque visible en la foto", [{ kind: "foto", ref: "foto del donante (no se guarda)" }], at, { model: photo!.model }) : null
   return { condition: conditionOf(input, at), visual, hoursSincePrep, storage, shelfLife: null as null, packaging }
@@ -183,6 +191,7 @@ function risk(input: CharacterizeInput, q: ReturnType<typeof quality>, p: Return
   const photo = input.photo
   if (photo?.status === "assessed") for (const i of photo.assessment.visible_issues) flags.push({ code: `foto_${i.issue}`, label: `visible en la foto: ${i.issue.replaceAll("_", " ")}${i.note ? ` (${i.note})` : ""}`, source: "foto" })
   if (photo?.status === "failed") flags.push({ code: "foto_no_evaluada", label: "la foto no se pudo evaluar", source: "foto" })
+  if (/(golpead|aplastad|maltratad|abiert[oa]s? |rot[oa]s?\b|danad)/.test(t)) flags.push({ code: "dano_declarado", label: "el donante menciona daño en producto o empaque", source: "texto" })
   if (/devoluci|devuelt/.test(t)) flags.push({ code: "devolucion", label: "producto devuelto: historial de almacenamiento desconocido", source: "texto" })
   if (/desde ayer|de ayer|del dia anterior/.test(t)) flags.push({ code: "mas_de_un_dia", label: "el donante dice que es de ayer", source: "texto" })
   if (q.condition.value === "inedible") flags.push({ code: "no_comestible", label: "condición: no comestible", source: q.condition.provenance === "verificado" ? "inspeccion" : "texto" })

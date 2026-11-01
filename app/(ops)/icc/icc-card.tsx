@@ -11,6 +11,14 @@ const fmt = (r: Range, digits = 0) => {
 const COND: Record<string, string> = { edible: "apto (declarado)", past_prime: "pasado de punto", inedible: "no comestible", unknown: "sin confirmar" };
 const DEST: Record<string, string> = { people: "personas", transformation: "transformación", compost: "composta" };
 const STATUS: Record<string, string> = { elegible: "elegible", condicionado: "condicionado", no_elegible: "no elegible" };
+const FACTOR: Record<string, string> = { tiempo: "tiempo · vida útil restante", integridad: "integridad y empaque", termico: "historial térmico" };
+const BAND_ROUTE: Record<string, string> = {
+  alto: "se ofrece a bancos de alimentos y comedores de alta capacidad.",
+  medio: "se ofrece solo a cocinas y refugios cercanos que preparan el mismo día.",
+  bajo: "sale de la ruta de alimentos: transformación o composta.",
+  pendiente: "la banda espera a que el donante o una persona confirme la condición.",
+  none: "sin banda: la ponderación no está definida.",
+};
 const VISUAL: Record<string, string> = { "no visible issues": "sin daño visible", "minor visible issues": "daño menor visible", "severe visible issues": "daño grave visible", "unclear photo": "foto poco clara" };
 const plural = (n: number, u: string) => (n === 1 || u === "kg" ? u : /[aeiou]$/.test(u) ? `${u}s` : `${u}es`);
 const FIELD: Record<string, string> = { quantity: "cantidad", weight: "peso", category: "categoría", location: "lugar de recolección", deadline_hour: "hora límite", condition: "condición", storage: "almacenamiento", material_specs: "especificaciones del material" };
@@ -30,7 +38,7 @@ function Method<T>({ a }: { a: Assessed<T> | null }) {
 }
 
 export function IccCard({ icc, title = "icc · índice de calidad compuesto" }: { icc: IccRecord; title?: string }) {
-  const p = icc.physical, q = icc.quality, r = icc.risk;
+  const p = icc.physical, q = icc.quality, r = icc.risk, c = icc.composite;
   const tookMs = Date.parse(icc.structuredAt) - Date.parse(icc.receivedAt);
   return <div className={s.card}>
     <div className={s.head}><h3>{title}</h3><span className={s.meta}>{icc.spec} · canal {icc.channel}{icc.channel !== "network" && Number.isFinite(tookMs) && tookMs >= 0 ? ` · estructurado en ${(tookMs / 1000).toFixed(1)} s` : ""}</span></div>
@@ -60,6 +68,17 @@ export function IccCard({ icc, title = "icc · índice de calidad compuesto" }: 
     <div><p className={s.label}>elegibilidad preliminar por destino · el motor de red decide con capacidad, zona y horario</p>
       <div className={s.elig}>{(["people", "transformation", "compost"] as const).map(t => { const e = icc.eligibility[t]; return <div key={t} className={`${s.dest} ${s[e.status]}`}><strong>{DEST[t]}<span>{STATUS[e.status]}</span></strong><span className="keep-case">{e.reasons.join("; ")}{e.needs.length ? ` · necesita: ${e.needs.join("; ")}` : ""}</span></div>; })}</div>
     </div>
-    <p className={s.score}>índice compuesto: {icc.composite.score ?? "sin puntaje"} · {icc.composite.reason}</p>
+    <div className={s.scoreBox}>
+      <div className={s.scoreHead}>
+        <span className={s.big}>{c.score ?? "—"}<small>/100</small></span>
+        <span className={`${s.band} ${s["band_" + (c.band ?? "none")]}`}>{c.band ? `banda ${c.band}` : "sin banda"}</span>
+        {c.range && c.range.min !== c.range.max && <span className={s.meta}>rango posible {c.range.min}–{c.range.max}</span>}
+      </div>
+      <div className={s.factors}>{c.factors.map(f => <div key={f.factor} className={s.factor}>
+        <strong>{FACTOR[f.factor]}<span>{f.value ?? "sin dato"}{f.provenance && <span className={`${s.chip} ${s[f.provenance]}`}>{f.provenance}</span>}</span></strong>
+        <span className={`${s.method} keep-case`}>{f.basis}</span>
+      </div>)}</div>
+      <p className={s.score}>{c.reason}. {BAND_ROUTE[c.band ?? "none"]}</p>
+    </div>
   </div>;
 }
