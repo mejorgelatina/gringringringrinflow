@@ -61,7 +61,10 @@ export default function AgentConsole() {
   }
   // /agent?code=gf-… reopens a collection started in this browser, so an operator can act on it.
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("code")?.toUpperCase();
+    const params = new URLSearchParams(window.location.search);
+    const incomingMessage = params.get("message");
+    if (incomingMessage?.trim()) setMessage(incomingMessage);
+    const code = params.get("code")?.toUpperCase();
     const saved = code ? loadSaved().find(x => x.code === code) : undefined;
     if (saved) fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: saved.token }) }).then(r => r.json()).then(d => { if (d.ok) { setToken(saved.token); setTracking(d.tracking); setRun(readRun(saved.token)); } }).catch(() => {});
   }, []);
