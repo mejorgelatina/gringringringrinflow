@@ -1,6 +1,7 @@
 import { cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { firebaseWebConfig } from "./config.ts";
 
 let cachedApp: App | null | undefined;
 let cachedDb: Firestore | null | undefined;
@@ -18,7 +19,8 @@ function firebaseConfig() {
 
 /** The Firebase project id, from the service account or, failing that, the public web config. */
 export function firebaseProjectId(): string | null {
-  return process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || null;
+  if (process.env.FIREBASE_PROJECT_ID) return process.env.FIREBASE_PROJECT_ID;
+  return firebaseWebConfig()?.projectId ?? null;
 }
 
 /** Firebase is deliberately optional so the demo still runs without credentials. */

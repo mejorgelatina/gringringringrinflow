@@ -9,7 +9,7 @@ GrinFlow usa el proyecto de Firebase **grinflow** para dos cosas:
 
 | Pieza | Dónde | Qué hace |
 | --- | --- | --- |
-| Config web pública | `lib/firebase/config.ts` | Lee `NEXT_PUBLIC_FIREBASE_*`. No son secretos. |
+| Config web pública | `lib/firebase/config.ts` | Trae la app registrada `grinflow-web` (App ID `1:792933786297:web:e806f14334bd8e33837168`); `NEXT_PUBLIC_FIREBASE_*` la reemplaza. No son secretos. |
 | SDK del navegador | `lib/firebase/client.ts` | Solo Auth. El navegador nunca toca Firestore. |
 | SDK de servidor (Admin) | `lib/firebase/admin.ts` | Firestore con la cuenta de servicio; verificación de ID tokens (basta el project id). |
 | Quién es del equipo | `lib/auth/team.ts` | Token válido + correo **verificado** + en `GRINFLOW_TEAM_EMAILS` (o claim `grinflowTeam: true`). `OPERATOR_KEY` sigue como respaldo. |
@@ -43,11 +43,7 @@ En **Authentication → Settings → Authorized domains**, agrega el dominio de 
 
 | Variable | Tipo | De dónde |
 | --- | --- | --- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | pública | `apps:sdkconfig` |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | pública | `apps:sdkconfig` |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | pública | `apps:sdkconfig` |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | pública | `apps:sdkconfig` |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | públicas, opcionales | `apps:sdkconfig` |
+| `NEXT_PUBLIC_FIREBASE_*` | pública, **opcional** | solo si quieres otra app; por defecto usa `grinflow-web` |
 | `GRINFLOW_TEAM_EMAILS` | servidor | correos del equipo separados por coma |
 | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | **secretas** | JSON de la cuenta de servicio |
 | `OPERATOR_KEY` | secreta, opcional | respaldo para scripts |

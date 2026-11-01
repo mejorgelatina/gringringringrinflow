@@ -27,6 +27,7 @@ test("operator key compares exactly and is off when unset", () => {
 
 test("requests without credentials or without firebase config are refused", async () => {
   for (const k of ["FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY", "NEXT_PUBLIC_FIREBASE_PROJECT_ID", "OPERATOR_KEY"]) delete process.env[k];
+  process.env.NEXT_PUBLIC_FIREBASE_DISABLED = "true";
   assert.equal(bearerToken(new Request("http://x", { headers: { authorization: "Bearer abc.def" } })), "abc.def");
   assert.deepEqual(await checkTeam(new Request("http://x")), { ok: false, reason: "no-credentials" });
   assert.deepEqual(await checkTeam(new Request("http://x", { headers: { authorization: "Bearer t" } })), { ok: false, reason: "auth-not-configured" });
@@ -34,4 +35,11 @@ test("requests without credentials or without firebase config are refused", asyn
   const r = await checkTeam(new Request("http://x", { headers: { "x-operator-key": "k" } }));
   assert.equal(r.ok, true);
   delete process.env.OPERATOR_KEY;
+  delete process.env.NEXT_PUBLIC_FIREBASE_DISABLED;
+});
+
+test("the registered grinflow web app is the default config", async () => {
+  const { firebaseWebConfig } = await import("../lib/firebase/config.ts");
+  assert.equal(firebaseWebConfig()?.projectId, "grinflow");
+  assert.equal(firebaseWebConfig()?.authDomain, "grinflow.firebaseapp.com");
 });
