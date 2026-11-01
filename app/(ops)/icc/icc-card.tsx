@@ -52,7 +52,7 @@ export function IccCard({ icc, title = "icc · índice de calidad compuesto" }: 
         <Value label="condición" a={q.condition} show={v => COND[v] ?? v}/><Method a={q.condition}/>
         <Value label="foto" a={q.visual} show={v => VISUAL[v] ?? v}/>
         <Value label="almacenamiento" a={q.storage} show={v => v}/>
-        <div className={s.row}><span>vida útil</span><span className={s.val}>sin estimar</span></div>
+        <Value label="desde preparación" a={q.hoursSincePrep} show={v => `~${v} h`}/>
       </div>
       <div className={s.dim}><h4>físico</h4>
         <Value label="conteo" a={p.count} show={v => `${p.count?.provenance === "estimado" ? "~" : ""}${v.count} ${plural(v.count, v.unit)}`}/>
