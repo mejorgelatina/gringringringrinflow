@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// GrinFlow keeps every Firestore read and write on the server (Vercel, Firebase Admin SDK in
+// lib/firebase/admin.ts). The Admin SDK bypasses these rules, so the browser never needs direct access:
+// registrations, conversations and the inbox hold phone numbers and addresses (personal data).
+// The browser only uses Firebase Auth to sign the team in; the server checks the ID token
+// (lib/auth/team.ts) before it returns personal data or accepts a verification.
+//
+// Collections written by the server: gf_registrations, gf_conversations, gf_inbox, agent_tracking,
+// whatsapp_messages, whatsapp_conversations, whatsapp_webhook_events.
+//
+// If a client feature ever needs direct reads, add a narrow match block for that collection only.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
