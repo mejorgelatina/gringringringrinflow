@@ -106,8 +106,8 @@ export default function TeamPage() {
       <div className="section-head"><div><div className="eyebrow">entrando ahora</div><h2>ofertas, necesidades y registros.</h2></div></div>
       {(data?.inbox.length ?? 0) === 0 ? <p className={s.empty}>todavía no llega nada.</p> :
         <div className={s.wrap}><table className={s.inbox}><thead><tr><th>hora</th><th>tipo</th><th>de</th><th>qué entendimos</th><th>destinos viables</th></tr></thead>
-          <tbody>{data!.inbox.map(i => <tr key={i.id}><td>{new Date(i.at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</td><td>{KIND[i.kind]}</td><td className="keep-case">{regs.find(r => r.id === i.registrationId)?.name ?? (i.source === "simulator" ? "simulador" : i.phone ? `••••${i.phone.slice(-4)}` : "web")}</td><td className="keep-case">{i.summary}</td><td>{i.kind === "offer" ? i.feasible : "—"}</td></tr>)}</tbody></table></div>}
-      <p className={s.note} style={{ marginTop: 12 }}>para proponer destino a una oferta, pega su mensaje en <a href="/agent">/agent</a>: el agente consulta la red (con las organizaciones verificadas) y tú firmas.</p>
+          <tbody>{data!.inbox.map(i => <tr key={i.id}><td>{new Date(i.at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</td><td>{KIND[i.kind]}</td><td className="keep-case">{regs.find(r => r.id === i.registrationId)?.name ?? (i.source === "simulator" ? "simulador" : i.phone ? `••••${i.phone.slice(-4)}` : "web")}</td><td className="keep-case">{i.summary}</td><td>{i.kind === "offer" ? <>{i.feasible}<a className={s.propose} href={`/agent?message=${encodeURIComponent(i.text)}`}>proponer destino ↗</a></> : "—"}</td></tr>)}</tbody></table></div>}
+      <p className={s.note} style={{ marginTop: 12 }}>el botón «proponer destino» abre el agente con la oferta ya cargada. el agente consulta la red y tú firmas; no se llama a meta desde este paso.</p>
     </section>
 
     {others.length > 0 && <section className="section-block">
