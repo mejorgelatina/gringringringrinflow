@@ -73,7 +73,17 @@ export function firebaseApp(): App | null {
 export function firestore(): Firestore | null {
   if (cachedDb !== undefined) return cachedDb;
   const app = firebaseApp();
-  cachedDb = app ? getFirestore(app) : null;
+  if (!app) return (cachedDb = null);
+  try {
+    const db = getFirestore(app);
+    // REST instead of gRPC: no long-lived channels or native streams, which misbehave in serverless functions.
+    db.settings({ preferRest: true, ignoreUndefinedProperties: true });
+    cachedDb = db;
+  } catch (error) {
+    initError = `firestore client failed: ${error instanceof Error ? error.message.slice(0, 200) : "unknown error"}`;
+    console.error(initError);
+    cachedDb = null;
+  }
   return cachedDb;
 }
 
