@@ -5,6 +5,7 @@ import { refreshLiveNetwork } from "@/lib/registry/network";
 import type { InboxItem, Registration } from "@/lib/registry/types";
 import { checkTeam } from "@/lib/auth/team";
 import { firebaseWebConfig } from "@/lib/firebase/config";
+import { firebaseEnabled, firebaseInitError } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,20 @@ export const dynamic = "force-dynamic";
 
 const visible = (ok: boolean) => (r: { source: Registration["source"] }) => ok || r.source === "simulator";
 
+const fail = (error: unknown) => {
+  console.error("registry api failed", error);
+  return NextResponse.json({ ok: false, message: `server error: ${error instanceof Error ? error.message.slice(0, 200) : "unknown"}` }, { status: 500 });
+};
+
 export async function GET(request: Request) {
+  try { return await get(request); } catch (error) { return fail(error); }
+}
+
+export async function POST(request: Request) {
+  try { return await post(request); } catch (error) { return fail(error); }
+}
+
+async function get(request: Request) {
   const team = await checkTeam(request);
   const ok = team.ok;
   const store = registryStore();
@@ -29,6 +43,7 @@ export async function GET(request: Request) {
     signedInAs: team.ok && team.identity.via === "firebase" ? team.identity.email : null,
     denied: team.ok ? null : team.reason,
     store: store.kind,
+    storeError: store.lastError ?? firebaseInitError() ?? (firebaseEnabled() || !process.env.FIREBASE_PRIVATE_KEY ? null : "firebase variables incomplete: need FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY"),
     registrations: registrations.filter(visible(ok)),
     inbox: inbox.filter(visible(ok)) as InboxItem[],
   }, { headers: { "Cache-Control": "no-store" } });
@@ -40,7 +55,7 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("place"), id: z.string().max(80), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180), area: z.string().trim().max(80).optional() }),
 ]);
 
-export async function POST(request: Request) {
+async function post(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, message: "invalid request" }, { status: 400 });
   const team = await checkTeam(request);

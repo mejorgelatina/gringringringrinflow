@@ -8,6 +8,8 @@ import type { Conversation, InboxItem, Registration } from "./types.ts"
 
 export interface RegistryStore {
   readonly kind: "firestore" | "memory"
+  /** Last Firestore failure (the store then serves from memory), or null. */
+  readonly lastError?: string | null
   getConversation(key: string): Promise<Conversation | null>
   saveConversation(c: Conversation): Promise<void>
   getRegistration(id: string): Promise<Registration | null>
@@ -66,10 +68,48 @@ function createFirestoreStore(): RegistryStore | null {
   }
 }
 
+/**
+ * Firestore first; if a call fails (API disabled, wrong project, missing index, bad credentials) the request
+ * is still answered from memory and the error is kept in `lastError` so /team can show it.
+ * Writes go to both, so nothing taken while Firestore is down is lost on this instance.
+ */
+export function withFallback(primary: RegistryStore, backup: RegistryStore = createMemoryStore(), timeoutMs = 6000): RegistryStore {
+  const state = { lastError: null as string | null }
+  // Bad credentials can make the Firestore client retry for a long time; don't let that hang the request.
+  const timed = <T,>(p: Promise<T>) => new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`no answer in ${timeoutMs / 1000}s`)), timeoutMs)
+    p.then((v) => { clearTimeout(t); resolve(v) }, (e) => { clearTimeout(t); reject(e) })
+  })
+  const run = async <T,>(op: string, a: () => Promise<T>, b: () => Promise<T>): Promise<T> => {
+    try { const v = await timed(a()); state.lastError = null; return v }
+    catch (error) {
+      state.lastError = `firestore ${op} failed: ${error instanceof Error ? error.message.slice(0, 200) : "unknown error"}`
+      console.error(state.lastError)
+      return b()
+    }
+  }
+  const both = (op: string, a: () => Promise<void>, b: () => Promise<void>) => run(op, async () => { await b(); await a() }, b)
+  return {
+    kind: primary.kind,
+    get lastError() { return state.lastError },
+    getConversation: (k) => run("read", () => primary.getConversation(k), () => backup.getConversation(k)),
+    saveConversation: (c) => both("write", () => primary.saveConversation(c), () => backup.saveConversation(c)),
+    getRegistration: (id) => run("read", () => primary.getRegistration(id), () => backup.getRegistration(id)),
+    findRegistrationByPhone: (p) => run("read", () => primary.findRegistrationByPhone(p), () => backup.findRegistrationByPhone(p)),
+    saveRegistration: (r) => both("write", () => primary.saveRegistration(r), () => backup.saveRegistration(r)),
+    listRegistrations: () => run("read", () => primary.listRegistrations(), () => backup.listRegistrations()),
+    addInbox: (i) => both("write", () => primary.addInbox(i), () => backup.addInbox(i)),
+    listInbox: (n) => run("read", () => primary.listInbox(n), () => backup.listInbox(n)),
+  }
+}
+
 const g = globalThis as unknown as { __grinflowRegistry?: RegistryStore }
 
 /** The process-wide store: Firestore if configured, else memory (kept on globalThis across hot reloads). */
 export function registryStore(): RegistryStore {
-  if (!g.__grinflowRegistry) g.__grinflowRegistry = createFirestoreStore() ?? createMemoryStore()
+  if (!g.__grinflowRegistry) {
+    const fs = createFirestoreStore()
+    g.__grinflowRegistry = fs ? withFallback(fs) : createMemoryStore()
+  }
   return g.__grinflowRegistry
 }

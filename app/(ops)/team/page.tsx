@@ -16,7 +16,7 @@ const STATUS: Record<string, string> = { pending: "pendiente", verified: "verifi
 const KIND: Record<string, string> = { offer: "oferta", need: "necesidad", registration: "registro", message: "mensaje" };
 const KEY = "grinflow-operator-key";
 
-type Data = { authorized: boolean; operatorKeySet: boolean; firebaseAuth: boolean; teamEmailsSet: boolean; signedInAs: string | null; denied: string | null; store: string; registrations: Registration[]; inbox: InboxItem[] };
+type Data = { authorized: boolean; operatorKeySet: boolean; firebaseAuth: boolean; teamEmailsSet: boolean; signedInAs: string | null; denied: string | null; store: string; storeError?: string | null; registrations: Registration[]; inbox: InboxItem[] };
 
 const DENIED: Record<string, string> = {
   "email-not-verified": "tu correo todavía no está verificado. abre el enlace que te mandamos y luego toca \"ya verifiqué\".",
@@ -49,7 +49,7 @@ export default function TeamPage() {
     setError("");
     try {
       const r = await fetch("/api/registry", { cache: "no-store", headers: await headers(k) });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({ ok: false, message: `el servidor respondió ${r.status} sin datos` }));
       if (!r.ok || !d.ok) throw new Error(d.message || "no se pudo cargar");
       setData(d);
     } catch (e) { setError(e instanceof Error ? e.message : "error"); }
@@ -63,7 +63,7 @@ export default function TeamPage() {
     setBusy(String(body.id)); setError("");
     try {
       const r = await fetch("/api/registry", { method: "POST", headers: { "Content-Type": "application/json", ...(await headers()) }, body: JSON.stringify(body) });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({ ok: false, message: `el servidor respondió ${r.status} sin datos` }));
       if (!r.ok || !d.ok) throw new Error(d.message || "no se pudo guardar");
       await load();
     } catch (e) { setError(e instanceof Error ? e.message : "error"); }
@@ -92,6 +92,7 @@ export default function TeamPage() {
       </details>}
       {data && !data.authorized && !user && <p className={s.note}>{auth ? "sin entrar solo ves registros del simulador. los datos de contacto reales son solo para el equipo." : data.operatorKeySet ? "sin la llave solo ves registros del simulador. los datos de contacto reales necesitan la llave de operador." : "OPERATOR_KEY no está configurada: solo se muestran registros del simulador. configúrala en vercel para ver los reales."}</p>}
       {data && <p className={s.note}>almacén: {data.store === "firestore" ? "firestore (durable)" : "memoria del servidor (se pierde al reiniciar; configura firebase para conservarlo)"}</p>}
+      {data?.storeError && <p className={s.note} role="status">firebase no respondió, así que se usa memoria: <span className="keep-case">{data.storeError}</span></p>}
       {error && <div className="error" role="alert">{error}</div>}
     </section>
 

@@ -9,17 +9,42 @@ let cachedAuth: Auth | null | undefined;
 
 const AUTH_ONLY_APP = "grinflow-auth-only";
 
+let initError: string | null = null;
+
+const unquote = (v: string | undefined) => v?.trim().replace(/^(['"])([\s\S]*)\1$/, "$2").trim() || undefined;
+
+/**
+ * Accepts the private key the ways people paste it into Vercel: with literal \n, with real newlines,
+ * wrapped in quotes, or even the whole service-account JSON.
+ */
+export function normalizePrivateKey(raw: string | undefined): string | undefined {
+  let v = unquote(raw);
+  if (!v) return undefined;
+  if (v.startsWith("{")) {
+    try { v = String(JSON.parse(v).private_key ?? ""); } catch { /* not JSON, keep as is */ }
+  }
+  v = v.replace(/\\n/g, "\n").replace(/\r/g, "");
+  return v.includes("PRIVATE KEY") ? (v.endsWith("\n") ? v : `${v}\n`) : v;
+}
+
 function firebaseConfig() {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const projectId = unquote(process.env.FIREBASE_PROJECT_ID);
+  const clientEmail = unquote(process.env.FIREBASE_CLIENT_EMAIL);
+  const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
   if (!projectId || !clientEmail || !privateKey) return null;
   return { projectId, clientEmail, privateKey };
 }
 
+/** Why the service account could not be used (bad key format, etc.), or null. Never includes the key. */
+export function firebaseInitError(): string | null {
+  firebaseApp();
+  return initError;
+}
+
 /** The Firebase project id, from the service account or, failing that, the public web config. */
 export function firebaseProjectId(): string | null {
-  if (process.env.FIREBASE_PROJECT_ID) return process.env.FIREBASE_PROJECT_ID;
+  const fromEnv = unquote(process.env.FIREBASE_PROJECT_ID);
+  if (fromEnv) return fromEnv;
   return firebaseWebConfig()?.projectId ?? null;
 }
 
@@ -35,7 +60,13 @@ export function firebaseApp(): App | null {
     cachedApp = null;
     return cachedApp;
   }
-  cachedApp = getApps().find((a) => a.name === "[DEFAULT]") ?? initializeApp({ credential: cert(config) });
+  try {
+    cachedApp = getApps().find((a) => a.name === "[DEFAULT]") ?? initializeApp({ credential: cert(config) });
+  } catch (error) {
+    initError = `firebase service account rejected: ${error instanceof Error ? error.message.slice(0, 200) : "unknown error"}`;
+    console.error(initError);
+    cachedApp = null;
+  }
   return cachedApp;
 }
 
