@@ -44,7 +44,11 @@ export type Candidate = {
 export const TIER_ORDER: LegacyTier[] = ["people", "transformation", "valorization"]
 const LEGACY: Record<Tier, LegacyTier> = { people: "people", transformation: "transformation", compost: "valorization" }
 
-/** Pilot-area places intake recognizes, with a representative point. Unknown places are not guessed. */
+/**
+ * Pilot-area places intake recognizes, with a representative point. Unknown places are not guessed.
+ * The added names and approximate representative points are based on the public CDMX colony
+ * catalog: https://datos.cdmx.gob.mx/dataset/catalogo-de-colonias-datos-abiertos
+ */
 export const PLACES: Record<string, Point> = {
   roma: { lat: 19.4194, lng: -99.1617 },
   "roma norte": { lat: 19.4194, lng: -99.1617 },
@@ -56,6 +60,21 @@ export const PLACES: Record<string, Point> = {
   narvarte: { lat: 19.396, lng: -99.156 },
   "del valle": { lat: 19.389, lng: -99.163 },
   guerrero: { lat: 19.44, lng: -99.15 },
+  polanco: { lat: 19.433, lng: -99.194 },
+  anzures: { lat: 19.428, lng: -99.177 },
+  "san rafael": { lat: 19.437, lng: -99.161 },
+  "santa maria la ribera": { lat: 19.453, lng: -99.163 },
+  escandon: { lat: 19.404, lng: -99.184 },
+  "san miguel chapultepec": { lat: 19.411, lng: -99.189 },
+  mixcoac: { lat: 19.375, lng: -99.191 },
+  portales: { lat: 19.358, lng: -99.144 },
+  alamos: { lat: 19.403, lng: -99.141 },
+  "del carmen": { lat: 19.35, lng: -99.163 },
+  coyoacan: { lat: 19.35, lng: -99.162 },
+  lindavista: { lat: 19.49, lng: -99.132 },
+  tacuba: { lat: 19.459, lng: -99.221 },
+  "san pedro de los pinos": { lat: 19.386, lng: -99.192 },
+  "lomas de chapultepec": { lat: 19.426, lng: -99.211 },
 }
 
 const norm = (s: string) => s.toLocaleLowerCase("es-MX").normalize("NFD").replace(/[̀-ͯ]/g, "").trim()

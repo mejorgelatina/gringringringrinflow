@@ -1,4 +1,4 @@
-import { detectAttributes, placePoint } from "../network/supply.ts"
+import { detectAttributes, placePoint, PLACES } from "../network/supply.ts"
 import type { Point } from "../network/types.ts"
 import type { Accepts, Contact, Generates, RegisteredRole, WeeklyHours } from "./types.ts"
 
@@ -151,6 +151,6 @@ export function parsePickup(text: string): boolean | null {
 export function parseAddress(text: string): { address: string; point: Point | null; area: string | null } {
   const address = text.trim().slice(0, 200)
   const t = norm(address)
-  const colonia = ["roma norte", "roma sur", "roma", "condesa", "centro", "doctores", "juarez", "narvarte", "del valle", "guerrero"].find((c) => t.includes(c)) ?? null
+  const colonia = Object.keys(PLACES).sort((a, b) => b.length - a.length).find((c) => t.includes(c)) ?? null
   return { address, point: colonia ? placePoint(colonia) : null, area: colonia }
 }
