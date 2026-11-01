@@ -5,6 +5,7 @@ import { test } from "node:test"
 import type { IntakeDeps } from "../lib/intake/process.ts"
 import { extractLocally } from "../lib/meta/meta.ts"
 import { alreadyHandled, composeReply, handleInbound, looksEnglish } from "../lib/whatsapp/handler.ts"
+import { approvalReply } from "../lib/whatsapp/approval-reply.ts"
 import { isAllowedSender, maskPhone, parseInbound, verifySignature, verifySubscription } from "../lib/whatsapp/webhook.ts"
 
 const JPEG = "data:image/jpeg;base64," + Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46]).toString("base64")
@@ -55,6 +56,23 @@ test("redelivered message ids are handled once", () => {
   assert.equal(alreadyHandled("wamid.1", 0), false)
   assert.equal(alreadyHandled("wamid.1", 1000), true)
   assert.equal(alreadyHandled("wamid.1", 4_000_000), false)
+})
+
+test("approval reply is gated and points to the public tracking route", () => {
+  const previous = process.env.WHATSAPP_REPLIES_ENABLED
+  try {
+    delete process.env.WHATSAPP_REPLIES_ENABLED
+    assert.equal(approvalReply("GF-abc12345", "https://demo.grinflow.test"), null)
+    process.env.WHATSAPP_REPLIES_ENABLED = "true"
+    const reply = approvalReply("gf-abc12345", "https://demo.grinflow.test/")
+    assert.match(reply!, /Tu donación fue aprobada/)
+    assert.match(reply!, /https:\/\/demo\.grinflow\.test\/track\/GF-ABC12345/)
+    assert.equal(approvalReply("not-a-code", "https://demo.grinflow.test"), null)
+    assert.equal(approvalReply("GF-abc12345", "demo.grinflow.test"), null)
+  } finally {
+    if (previous === undefined) delete process.env.WHATSAPP_REPLIES_ENABLED
+    else process.env.WHATSAPP_REPLIES_ENABLED = previous
+  }
 })
 
 test("handler: Spanish offer gets a Spanish reply with one question, preview only, no Meta call", async () => {
