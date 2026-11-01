@@ -102,6 +102,27 @@ The landing and the v0.10 screens use separate root layouts (`app/(site)`, `app/
 
 Donors can message a WhatsApp Cloud API test number; `/api/whatsapp/webhook` verifies Meta's signature, runs the same intake pipeline, and replies with one question in the donor's language. `/whatsapp` is a simulator that uses the exact same handler and shows a step-by-step trace, so the flow can be checked without messaging anyone. Replies are only sent with `WHATSAPP_REPLIES_ENABLED=true`. To run it with your own test number, follow [`docs/WHATSAPP_SETUP.md`](docs/WHATSAPP_SETUP.md).
 
+### judge walkthrough: whatsapp
+
+The live demo uses Meta's free WhatsApp Cloud API test number, not a judge's personal number as the business number. In Meta's developer dashboard, open the app's **WhatsApp → API setup**, copy the test number's **phone number id**, add one judge or teammate as a verified recipient, and subscribe the app to the `messages` webhook field. In the production deployment, set the server-only WhatsApp variables from [`docs/WHATSAPP_SETUP.md`](docs/WHATSAPP_SETUP.md), then use this callback URL:
+
+```text
+https://<production-domain>/api/whatsapp/webhook
+```
+
+Keep `META_CALLS_ENABLED=false` for the no-credit walkthrough. The local fallback still extracts the offer, applies the deterministic safety and matching rules, and labels the result as local. Set `WHATSAPP_REPLIES_ENABLED=true` only when the judge is ready to receive the bot's reply from the test number; this flag does not turn on Meta model calls.
+
+Send these messages from the verified recipient to the Meta test number:
+
+1. `quiero registrar mi organización`
+2. Answer the short onboarding questions with a name, a CDMX colonia, receiving hours, contact and what the organization can receive. A location pin may be sent instead of typing the colonia.
+3. Start a separate offer with: `Tenemos 20 cajas de pan fresco en la colonia Roma, hay que recogerlas antes de las 6 pm.`
+4. Optionally attach a photo with a caption. A photo can describe what is visible, but it never certifies that food is safe for people.
+
+Open `/team` with a verified team account. The registration appears under **por verificar** and the offer appears in the inbox. Verify the organization only after checking its details. For an offer, choose **proponer destino**; the agent opens with the WhatsApp text already loaded, uses the local fallback, applies the hard gates and stops for a human decision. After approval, the demo prepares a WhatsApp reply containing `/track/GF-…`; the public tracking page shows the stages and clearly labels pickup and delivery as simulated.
+
+If a live Meta test number is not available, open `/whatsapp` and use the same messages in the simulator. The simulator exercises the exact webhook handler without sending a WhatsApp message, and `/team` still shows the resulting synthetic registration or offer.
+
 ### Checks
 
 ```bash
