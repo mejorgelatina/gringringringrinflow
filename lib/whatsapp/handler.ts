@@ -1,5 +1,6 @@
 import { processIntake, type IntakeDeps, type IntakeResult } from "../intake/process.ts";
 import { isAcceptableImageDataUrl } from "../meta/photo-policy.ts";
+import { fmtRange } from "../icc/spec.ts";
 import { isAllowedSender, maskPhone, type InboundMessage } from "./webhook.ts";
 
 export type TraceStep = { at: string; step: string; detail: string };
@@ -12,7 +13,7 @@ export type Trace = {
   reply: string | null;
   replyStatus: "sent" | "preview" | "failed" | "none";
   metaCalls: number;
-  intake: Pick<IntakeResult, "provider" | "supply" | "demand" | "condition" | "photo"> & { feasible: number; blocked: number } | null;
+  intake: Pick<IntakeResult, "provider" | "supply" | "demand" | "condition" | "photo" | "icc"> & { feasible: number; blocked: number } | null;
 };
 
 export type HandlerContext = {
@@ -21,14 +22,14 @@ export type HandlerContext = {
   /** When false or missing, the reply is composed and traced but never sent. */
   send: ((to: string, body: string) => Promise<string | null>) | null;
   fetchMedia: ((mediaId: string) => Promise<string>) | null;
-  photoFixture?: "clean" | "mold";
+  photoFixture?: "clean" | "mold" | "containers";
   source: Trace["source"];
   now?: () => Date;
 };
 
 const CATEGORY_ES: Record<string, string> = { panificados: "pan", verduras: "verdura", frutas: "fruta", lacteos: "lácteos", abarrotes: "abarrotes", proteina: "proteína", organico: "orgánico" };
-const MISSING_ES: Record<string, string> = { quantity: "¿Cuántas piezas o cajas son, aproximadamente cuántos kilos?", deadline_hour: "¿Hasta qué hora se puede recoger?", location: "¿En qué dirección o colonia se recoge?", category: "¿Qué producto es?", condition: "¿El producto está apto para consumo humano, pasado de su mejor momento, o no comestible?" };
-const MISSING_EN: Record<string, string> = { quantity: "How many boxes or pieces, and roughly how many kilos?", deadline_hour: "Until what time can it be picked up?", location: "What is the pickup address or neighborhood?", category: "What product is it?", condition: "Is it fit for people, past its prime, or not edible?" };
+const MISSING_ES: Record<string, string> = { weight: "¿Tienen el peso total en kilos? Si no, dime qué tipo de caja o contenedor es y lo registramos como estimado.", storage: "¿Estuvo refrigerado? ¿Desde cuándo?", quantity: "¿Cuántas piezas o cajas son, aproximadamente cuántos kilos?", deadline_hour: "¿Hasta qué hora se puede recoger?", location: "¿En qué dirección o colonia se recoge?", category: "¿Qué producto es?", condition: "¿El producto está apto para consumo humano, pasado de su mejor momento, o no comestible?" };
+const MISSING_EN: Record<string, string> = { weight: "Do you have the total weight in kilos? If not, tell me what kind of box or container it is and we'll record it as estimated.", storage: "Was it refrigerated? Since when?", quantity: "How many boxes or pieces, and roughly how many kilos?", deadline_hour: "Until what time can it be picked up?", location: "What is the pickup address or neighborhood?", category: "What product is it?", condition: "Is it fit for people, past its prime, or not edible?" };
 
 export function looksEnglish(text: string): boolean {
   return /\b(we|have|the|boxes|pickup|available|today|need|hi|hello|receive)\b/i.test(text) && !/\b(tenemos|cajas|hay|para|recoger|hola|recibir|tengo)\b/i.test(text);
@@ -77,12 +78,18 @@ export function composeReply(text: string, r: IntakeResult): string {
   const unit = ev?.unit && s.quantity !== 1 ? (ev.unit === "box" ? "boxes" : ev.unit === "kg" || ev.unit.endsWith("s") ? ev.unit : `${ev.unit}s`) : ev?.unit ?? "";
   const qty = s.quantity != null ? `${s.quantityBasis === "estimated" ? (en ? "about " : "aprox. ") : ""}${s.quantity} ${unit}`.trim() : null;
   const place = s.location ? s.location.replace(/\b\p{L}/gu, c => c.toUpperCase()) : null;
-  const parts = [qty, item, place ? (en ? `at ${place}` : `en ${place}`) : null, s.deadlineHour != null ? (en ? `before ${s.deadlineHour}:00` : `antes de las ${s.deadlineHour}:00`) : null].filter(Boolean);
+  // Weight as ICC knows it: a declared number, or an estimate that says it is one.
+  const w = r.icc?.physical.weightKg;
+  const weight = w && !(s.quantity != null && ev?.unit === "kg") ? (w.provenance === "estimado" ? (en ? `~${fmtRange(w.value)} kg estimated` : `~${fmtRange(w.value)} kg estimado`) : `${fmtRange(w.value)} kg`) : null;
+  const parts = [qty, item, weight, place ? (en ? `at ${place}` : `en ${place}`) : null, s.deadlineHour != null ? (en ? `before ${s.deadlineHour}:00` : `antes de las ${s.deadlineHour}:00`) : null].filter(Boolean);
   const lines = [en ? `Thanks! I noted: ${parts.join(", ")}.` : `¡Gracias! Registré: ${parts.join(", ")}.`];
-  const missing = ev?.unresolved?.[0];
+  const missing = r.icc?.missing.find(m => m.askWho === "donor" && m.field !== "quantity")?.field ?? ev?.unresolved?.[0];
   const photoQuestion = r.photo?.status === "assessed" && r.photo.routing.suggestedCondition !== "unknown" ? r.photo.routing.questionForDonor : null;
   if (r.photo?.status === "failed") lines.push(en ? "I couldn't read the photo. Could you send another one?" : "No pude revisar la foto. ¿Me mandas otra?");
   else if (photoQuestion) lines.push(en ? photoQuestion : "Tu foto muestra posible daño. ¿Sigue apto para personas, o solo para composta?");
+  else if (s.quantitySource === "foto") lines.push(en
+    ? `From the photo I count about ${s.quantity} ${s.unit ?? "items"}. I can estimate the volume, but I don't have a confirmed weight. How many are there, and do you have the total weight, or shall we record it as estimated?`
+    : `Por la foto identifico aproximadamente ${s.quantity} ${s.unit === "caja" ? "cajas" : s.unit === "contenedor" ? "contenedores" : s.unit ?? "piezas"}. Puedo estimar el volumen, pero no tengo el peso confirmado. ¿Cuántos son, y tienen el peso total o lo registramos como estimado?`);
   else if (missing) lines.push((en ? MISSING_EN : MISSING_ES)[missing] ?? (en ? `Can you confirm ${missing.replaceAll("_", " ")}?` : `¿Me confirmas ${missing.replaceAll("_", " ")}?`));
   else if (s.quantityBasis === "estimated") lines.push(en ? `Can you confirm the exact quantity?` : "¿Me confirmas la cantidad exacta?");
   else if (s.condition === "unknown") lines.push(en ? MISSING_EN.condition : MISSING_ES.condition);
@@ -123,12 +130,13 @@ export async function handleInbound(msg: InboundMessage, ctx: HandlerContext): P
   if (!text) { step("ignored", "Empty message."); return trace; }
 
   try {
-    const r = await processIntake(text, image, ctx.deps, ctx.photoFixture);
+    const r = await processIntake(text, image, ctx.deps, ctx.photoFixture, ctx.source === "web" ? "web" : "whatsapp");
     trace.metaCalls = r.metaCalls;
     const feasible = r.candidates.filter(c => c.feasible).length;
-    trace.intake = { provider: r.provider, supply: r.supply, demand: r.demand, condition: r.condition, photo: r.photo, feasible, blocked: r.candidates.length - feasible };
+    trace.intake = { provider: r.provider, supply: r.supply, demand: r.demand, condition: r.condition, photo: r.photo, icc: r.icc, feasible, blocked: r.candidates.length - feasible };
     step("interpreted", `${r.provider} · ${r.metaCalls} Meta call(s) · ${r.supply ? "supply offer drafted" : r.demand ? "receiving organization drafted (needs verification)" : "no offer found"}`);
     if (r.condition) step("safety", `${r.condition.reason} Routing condition: ${r.condition.effective}.`);
+    if (r.icc) { const w = r.icc.physical.weightKg; step("icc", `weight ${w ? `${fmtRange(w.value)} kg · ${w.provenance}` : "unknown"} · condition ${r.icc.quality.condition.value} · ${r.icc.quality.condition.provenance} · missing ${r.icc.missing.map(m => m.field).join(", ") || "nothing"}`); }
     if (r.supply) step("matching", `${feasible} feasible, ${r.candidates.length - feasible} blocked (deterministic gates; nothing booked).`);
     trace.reply = composeReply(text, r);
   } catch (e) {
@@ -147,5 +155,5 @@ const traces: Trace[] = [];
 export function recordTrace(t: Trace) { traces.unshift(t); traces.length = Math.min(traces.length, 25); }
 /** Public view: webhook and web traces come from real people, so their reply text and offer details are withheld. */
 export function recentTraces(): Trace[] {
-  return traces.map(t => t.source === "simulator" ? t : { ...t, reply: t.reply ? "(withheld: real sender)" : null, intake: t.intake ? { ...t.intake, supply: null, demand: null, photo: null } : null });
+  return traces.map(t => t.source === "simulator" ? t : { ...t, reply: t.reply ? "(withheld: real sender)" : null, intake: t.intake ? { ...t.intake, supply: null, demand: null, photo: null, icc: null } : null });
 }

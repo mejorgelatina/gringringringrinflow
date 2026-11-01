@@ -28,7 +28,13 @@ export function createMetaJudge(client: ResponsesClient, model: string): Judge {
 export const localJudge: Judge = async (rationale, quotes, facts) => {
   const source = `${quotes.join(" ")} ${facts}`;
   // "18:00" counts as 18: the hour is the fact, the minutes are formatting.
-  const unsupported = (rationale.replace(/:00\b/g, "").match(/\d+(?:[.,]\d+)?/g) ?? []).filter(n => !source.includes(n));
+  const text = rationale.replace(/:00\b/g, "");
+  const unsupported = (text.match(/\d+(?:[.,]\d+)?/g) ?? []).filter(n => !source.includes(n));
+  // A number with a unit must appear with that unit: "50 cajas" is not supported by a "30–50 kg" estimate.
+  for (const m of text.matchAll(/(\d+(?:[.,]\d+)?)\s*(cajas?|boxes|box|kg|kilos?|piezas?|costal(?:es)?|contenedor(?:es)?)\b/gi)) {
+    const stem = m[2].toLowerCase().startsWith("kil") || m[2].toLowerCase() === "kg" ? "(?:kg|kilo)" : m[2].toLowerCase().slice(0, 3);
+    if (!new RegExp(`(^|[^\\d.,])${m[1].replace(".", "\\.")}\\s*${stem}`, "i").test(source) && !unsupported.includes(m[0])) unsupported.push(m[0]);
+  }
   return unsupported.length
     ? { by: "local number check (Meta calls off)", supported: false, note: `numbers not found in the quotes or the records: ${unsupported.join(", ")}` }
     : { by: "local number check (Meta calls off)", supported: true, note: "every number in the rationale comes from the quotes or the records" };

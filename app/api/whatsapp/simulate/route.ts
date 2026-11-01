@@ -7,7 +7,7 @@ import { handleInbound, recordTrace } from "@/lib/whatsapp/handler";
 const Body = z.object({
   text: z.string().trim().max(5000).default(""),
   image: z.string().refine(isAcceptableImageDataUrl, "Unsupported or oversized image").optional(),
-  photoFixture: z.enum(["clean", "mold"]).optional()
+  photoFixture: z.enum(["clean", "mold", "containers"]).optional()
 });
 export const runtime = "nodejs";
 

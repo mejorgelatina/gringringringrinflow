@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import type { IccRecord } from "@/lib/icc/types";
+import { IccCard } from "../icc/icc-card";
 
 type Step = { at: string; step: string; detail: string };
-type Trace = { id: string; source: "webhook" | "simulator"; from: string; receivedAt: string; steps: Step[]; reply: string | null; replyStatus: "sent" | "preview" | "failed" | "none"; metaCalls: number; intake: { provider: string; feasible: number; blocked: number; condition: { effective: string; peopleRouteBlocked: boolean } | null } | null };
+type Trace = { id: string; source: "webhook" | "simulator"; from: string; receivedAt: string; steps: Step[]; reply: string | null; replyStatus: "sent" | "preview" | "failed" | "none"; metaCalls: number; intake: { provider: string; feasible: number; blocked: number; condition: { effective: string; peopleRouteBlocked: boolean } | null; icc?: IccRecord | null } | null };
 type Config = { verifyTokenSet: boolean; appSecretSet: boolean; accessTokenSet: boolean; phoneNumberIdSet: boolean; repliesEnabled: boolean; allowlistSet: boolean; metaCallsEnabled: boolean; firebaseSet?: boolean };
 type Bubble = { who: "donor" | "grinflow"; text: string; image?: string; trace?: Trace };
 
@@ -24,7 +26,7 @@ async function toDataUrl(file: File): Promise<string> {
 export default function WhatsAppDemo() {
   const [text, setText] = useState(SAMPLES[0]);
   const [image, setImage] = useState<string | null>(null);
-  const [fixture, setFixture] = useState<"" | "clean" | "mold">("");
+  const [fixture, setFixture] = useState<"" | "clean" | "mold" | "containers">("");
   const [chat, setChat] = useState<Bubble[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -72,7 +74,7 @@ export default function WhatsAppDemo() {
           <div className="wa-actions">
             <label className="photo-pick" htmlFor="wa-photo">{image ? "Change photo" : "+ Photo"}</label>
             <input id="wa-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={async e => { const f = e.target.files?.[0]; setError(""); if (!f) return; try { setImage(await toDataUrl(f)); } catch { setError("Could not read that image."); } }}/>
-            {image && <><img className="photo-thumb" src={image} alt="Photo preview"/><label className="fixture-pick">Offline result<select value={fixture} onChange={e => setFixture(e.target.value as typeof fixture)}><option value="">Not analyzed</option><option value="clean">Simulate: intact</option><option value="mold">Simulate: mold</option></select></label></>}
+            {image && <><img className="photo-thumb" src={image} alt="Photo preview"/><label className="fixture-pick">Offline result<select value={fixture} onChange={e => setFixture(e.target.value as typeof fixture)}><option value="">Not analyzed</option><option value="clean">Simulate: intact</option><option value="mold">Simulate: mold</option><option value="containers">Simulate: ~12 food containers</option></select></label></>}
             <button className="primary" onClick={send} disabled={busy || (!text.trim() && !image)}>{busy ? "Sending…" : "Send ↗"}</button>
           </div>
           {error && <div className="error" role="alert">{error}</div>}
@@ -84,6 +86,7 @@ export default function WhatsAppDemo() {
           {!last ? <p className="subhead">Each step of the handler appears here: validation, model or fallback, safety gate, matching, reply.</p> :
             <ol className="wa-trace">{last.steps.map((s, i) => <li key={i}><strong>{s.step}</strong><span>{s.detail}</span></li>)}</ol>}
         </div>
+        {last?.intake?.icc && <IccCard icc={last.intake.icc} title="icc · this message"/>}
         <div className="section-block"><div className="eyebrow">LIVE SETUP ON THIS DEPLOYMENT</div>
           {config ? <ul className="wa-config">{([
             ["Verify token", config.verifyTokenSet], ["App secret (signature check)", config.appSecretSet], ["Access token", config.accessTokenSet], ["Phone number ID", config.phoneNumberIdSet], ["Replies enabled", config.repliesEnabled], ["Sender allowlist", config.allowlistSet], ["Meta model calls", config.metaCallsEnabled], ["Firestore (durable storage)", Boolean(config.firebaseSet)]

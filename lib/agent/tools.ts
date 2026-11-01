@@ -1,6 +1,8 @@
 import { evaluateSupply } from "../network/supply.ts";
 import type { IntakeDeps, Supply } from "../intake/process.ts";
-import { LOCAL_PROVIDER } from "../intake/process.ts";
+import { iccPhoto, LOCAL_PROVIDER } from "../intake/process.ts";
+import { characterize, countFromPhoto } from "../icc/characterize.ts";
+import { fmtRange } from "../icc/spec.ts";
 import { assessPhotoLocally, PHOTO_FIXTURES, resolveCondition, routePhotoAssessment, type ObservedCondition } from "../meta/photo-policy.ts";
 import type { Extraction } from "../meta/types.ts";
 import { checkHandoff, checkProposal, checkQuestion, MAX_ASKS } from "./checks.ts";
@@ -22,13 +24,13 @@ export const MAX_REFUSALS = 3;
 const NO_ARGS = { type: "object", additionalProperties: false, properties: {}, required: [] };
 
 export const TOOL_DEFINITIONS = [
-  { type: "function", name: "extract_event", description: "Read the donor's newest message(s) and update the structured offer: item, quantity and whether it was stated or estimated, condition, deadline, pickup location. Every field comes with the exact quote it was taken from.", parameters: NO_ARGS },
+  { type: "function", name: "extract_event", description: "Read the donor's newest message(s) and update the structured offer: item, quantity and unit and whether it was stated or estimated, condition, deadline, pickup location. Every field comes with the exact quote it was taken from. Also returns the ICC record: weight and volume with their provenance (declarado, estimado, medido, verificado) and what is still missing.", parameters: NO_ARGS },
   { type: "function", name: "assess_photo", description: "Describe the donor's photo, if one was sent: visible items, damage, legibility. A photo can only lower confidence in condition, never certify food as safe.", parameters: NO_ARGS },
   { type: "function", name: "find_matches", description: "Run grinflow's deterministic matching engine on the current offer. Returns feasible recipient + transport pairs and, for blocked pairs, the hard constraints that block them. You cannot override a blocker.", parameters: NO_ARGS },
   {
     type: "function", name: "ask_donor",
-    description: "Ask the donor one question about one missing or uncertain field. The run pauses until the donor answers. Allowed only for a field that is actually missing or uncertain, at most twice per offer.",
-    parameters: { type: "object", additionalProperties: false, properties: { field: { type: "string", enum: ["quantity", "deadline_hour", "location", "category", "condition", "offer"] }, question: { type: "string", description: "one short question, in the donor's language" } }, required: ["field", "question"] }
+    description: "Ask the donor one question about one missing or uncertain field. The run pauses until the donor answers. Allowed only for a field that is actually missing or uncertain, at most twice per offer. If the weight is unknown, ask for it (or for the kind of box or container, so it can be estimated); never state a weight yourself.",
+    parameters: { type: "object", additionalProperties: false, properties: { field: { type: "string", enum: ["quantity", "weight", "storage", "deadline_hour", "location", "category", "condition", "offer"] }, question: { type: "string", description: "one short question, in the donor's language" } }, required: ["field", "question"] }
   },
   {
     type: "function", name: "ask_operator",
@@ -68,7 +70,10 @@ export function mergeSupply(prev: Supply | null, next: Supply | null): Supply | 
     item: next.item ?? prev.item,
     category: next.category ?? prev.category,
     quantity: quantityChanged ? next.quantity : prev.quantity,
+    unit: quantityChanged ? next.unit ?? prev.unit : prev.unit,
     quantityBasis: quantityChanged ? next.quantityBasis : prev.quantityBasis,
+    quantitySource: quantityChanged ? next.quantitySource : prev.quantitySource,
+    measuredKg: prev.measuredKg ?? null,
     condition: next.condition !== "unknown" ? next.condition : prev.condition,
     deadlineHour: next.deadlineHour ?? prev.deadlineHour,
     location: next.location ?? prev.location
@@ -77,7 +82,7 @@ export function mergeSupply(prev: Supply | null, next: Supply | null): Supply | 
 
 function toSupply(extraction: Extraction): Supply | null {
   const e = extraction.events.find(ev => ev.kind === "supply_announced") ?? (extraction.events.length === 1 && extraction.events[0].kind !== "demand_declared" && extraction.events[0].kind !== "unknown" ? extraction.events[0] : undefined);
-  return e ? { item: e.item, category: e.category, quantity: e.quantity, quantityBasis: e.quantity_basis, condition: e.condition, deadlineHour: e.deadline_hour, location: e.location } : null;
+  return e ? { item: e.item, category: e.category, quantity: e.quantity, unit: e.unit, quantityBasis: e.quantity_basis, quantitySource: e.quantity == null ? null : "texto", condition: e.condition, deadlineHour: e.deadline_hour, location: e.location } : null;
 }
 
 function observedCondition(run: AgentRun): ObservedCondition {
@@ -90,6 +95,15 @@ function refreshCondition(run: AgentRun, stated = run.condition?.stated ?? run.s
   if (!run.supply) return;
   run.condition = resolveCondition(stated, observedCondition(run), run.condition?.humanConfirmed ?? null);
   run.supply = { ...run.supply, condition: run.condition.effective };
+  refreshIcc(run);
+}
+
+/** Same characterization the other channels get. A count from the photo fills only a missing count, as estimado. */
+export function refreshIcc(run: AgentRun) {
+  if (!run.supply) { run.icc = null; return; }
+  const photo = iccPhoto(run.photo);
+  run.supply = countFromPhoto(run.supply, photo);
+  run.icc = characterize({ channel: "agent", text: run.donorTexts.join("\n"), supply: run.supply, photo, condition: run.condition, receivedAt: run.createdAt });
 }
 
 async function extractEvent({ run, deps }: ToolContext): Promise<ToolResult> {
@@ -113,11 +127,11 @@ async function extractEvent({ run, deps }: ToolContext): Promise<ToolResult> {
   refreshCondition(run, stated);
   const s = run.supply;
   // Reported against the merged offer, not the latest message alone, so a follow-up doesn't re-list fields already known.
-  const missing = s ? [s.quantity == null && "quantity", s.category == null && "category", s.location == null && "location", s.deadlineHour == null && "deadline_hour", s.condition === "unknown" && "condition"].filter(Boolean) : [];
+  const missing = run.icc ? run.icc.missing.map(m => m.field) : [];
   return {
     ok: true,
-    summary: run.supply ? `offer: ${describeSupply(run.supply)}${missing.length ? ` · missing ${missing.join(", ")}` : ""}${dropped ? ` · ${dropped} event(s) dropped: quote not in the message` : ""}` : "no food offer found in the message",
-    data: { offer: run.supply, condition: run.condition, events: kept.map(e => ({ kind: e.kind, item: e.item, quantity: e.quantity, unit: e.unit, quantity_basis: e.quantity_basis, condition: e.condition, deadline_hour: e.deadline_hour, location: e.location, unresolved: e.unresolved, quote: e.quote })), review_reasons: checked.review_reasons, droppedForBadQuote: dropped }
+    summary: run.supply ? `offer: ${describeSupply(run.supply, run.icc)}${missing.length ? ` · missing ${missing.join(", ")}` : ""}${dropped ? ` · ${dropped} event(s) dropped: quote not in the message` : ""}` : "no food offer found in the message",
+    data: { offer: run.supply, condition: run.condition, icc: iccSummary(run), events: kept.map(e => ({ kind: e.kind, item: e.item, quantity: e.quantity, unit: e.unit, quantity_basis: e.quantity_basis, condition: e.condition, deadline_hour: e.deadline_hour, location: e.location, unresolved: e.unresolved, quote: e.quote })), review_reasons: checked.review_reasons, droppedForBadQuote: dropped }
   };
 }
 
@@ -141,19 +155,19 @@ async function assessPhoto({ run, deps, image }: ToolContext): Promise<ToolResul
   const p = run.photo;
   return p.status === "failed"
     ? { ok: true, summary: "photo could not be assessed: condition is not trusted until a person inspects", data: { photo: "failed", condition: run.condition } }
-    : { ok: true, summary: `photo: ${p.assessment.visual_grade.replaceAll("_", " ")} · suggests ${p.routing.suggestedCondition.replaceAll("_", " ")}`, data: { grade: p.assessment.visual_grade, issues: p.assessment.visible_issues, suggestedCondition: p.routing.suggestedCondition, condition: run.condition } };
+    : { ok: true, summary: `photo: ${p.assessment.visual_grade.replaceAll("_", " ")} · suggests ${p.routing.suggestedCondition.replaceAll("_", " ")}${run.supply?.quantitySource === "foto" ? ` · about ${run.supply.quantity} ${run.supply.unit ?? "items"} visible (estimado)` : ""}`, data: { grade: p.assessment.visual_grade, issues: p.assessment.visible_issues, suggestedCondition: p.routing.suggestedCondition, condition: run.condition, icc: iccSummary(run) } };
 }
 
 function findMatches({ run }: ToolContext): ToolResult {
   if (!run.supply) return refuse("no_offer", "there is no offer yet: call extract_event first, or ask the donor what they have");
-  run.candidates = evaluateSupply(run.supply, run.donorTexts.join("\n")).map(c => ({ recipientId: c.recipientId, recipient: c.recipient, tier: c.tier, capacityId: c.capacityId, capacity: c.capacity, routeKm: c.routeKm ?? null, feasible: c.feasible, blockers: c.blockers }));
+  run.candidates = evaluateSupply(run.supply, run.donorTexts.join("\n")).map(c => ({ recipientId: c.recipientId, recipient: c.recipient, tier: c.tier, capacityId: c.capacityId, capacity: c.capacity, routeKm: c.routeKm ?? null, feasible: c.feasible, blockers: c.blockers, warnings: c.warnings ?? [] }));
   run.candidatesVersion = run.supplyVersion;
   const feasible = run.candidates.filter(c => c.feasible);
   return {
     ok: true,
     summary: `${feasible.length} feasible, ${run.candidates.length - feasible.length} blocked`,
     data: {
-      feasible: feasible.map(c => ({ recipientId: c.recipientId, capacityId: c.capacityId, recipient: c.recipient, tier: c.tier, capacity: c.capacity })),
+      feasible: feasible.map(c => ({ recipientId: c.recipientId, capacityId: c.capacityId, recipient: c.recipient, tier: c.tier, capacity: c.capacity, warnings: (c.warnings ?? []).map(w => w.label) })),
       blocked: run.candidates.filter(c => !c.feasible).slice(0, 6).map(c => ({ recipientId: c.recipientId, capacityId: c.capacityId, recipient: c.recipient, tier: c.tier, blockers: c.blockers.map(b => b.code) }))
     }
   };
@@ -205,10 +219,33 @@ async function proposeMatch({ run, deps }: ToolContext, args: Record<string, unk
 }
 
 function factsFor(run: AgentRun, c: Candidate): string {
-  return JSON.stringify({ offer: run.supply, recipient: c.recipient, tier: c.tier, transport: c.capacity });
+  return JSON.stringify({ offer: run.supply, icc: iccSummary(run), recipient: c.recipient, tier: c.tier, transport: c.capacity });
 }
 
-export function describeSupply(s: Supply): string {
-  const qty = s.quantity == null ? "quantity ?" : `${s.quantityBasis === "estimated" ? "~" : ""}${s.quantity}`;
-  return [qty, s.item ?? s.category ?? "item ?", s.location ? `at ${s.location}` : "location ?", s.deadlineHour != null ? `by ${s.deadlineHour}:00` : "deadline ?", `condition ${s.condition.replaceAll("_", " ")}`].join(" · ");
+/** What the planner and the reviewer see of ICC: values with their provenance, never a bare number. */
+export function iccSummary(run: AgentRun) {
+  const i = run.icc;
+  if (!i) return null;
+  const w = i.physical.weightKg, v = i.physical.volumeM3, c = i.physical.count;
+  return {
+    count: c ? `${c.value.count} ${c.value.unit} · ${c.provenance}` : "unknown",
+    weightKg: w ? `${fmtRange(w.value)} kg${w.value.min !== w.value.max ? `, planning point ~${Math.round(w.value.point * 10) / 10} kg` : ""} · ${w.provenance} · ${w.method}` : "unknown: do not state a weight",
+    volumeM3: v ? `${fmtRange(v.value, 2)} · ${v.provenance}` : "unknown",
+    condition: `${i.quality.condition.value} · ${i.quality.condition.provenance}`,
+    risks: i.risk.flags.map(f => f.label),
+    pendingVerifications: i.risk.pendingVerifications,
+    missing: i.missing.map(m => `${m.field} (${m.askWho}): ${m.why}`),
+    iccScore: i.composite.score == null ? "no score" : `${i.composite.score}/100 · band ${i.composite.band} · ${i.composite.reason}`,
+    eligibility: Object.fromEntries(Object.entries(i.eligibility).map(([k, e]) => [k, `${e.status}${e.needs.length ? ` · needs ${e.needs.join("; ")}` : ""}`])),
+  };
+}
+
+export function describeSupply(s: Supply, icc?: AgentRun["icc"]): string {
+  const w = icc?.physical.weightKg;
+  const est = w?.provenance === "estimado";
+  // A weight always carries its provenance: "~30–50 kg estimado", or "40 kg" when declared.
+  const weight = w ? `${est ? "~" : ""}${fmtRange(w.value)} kg${est ? " estimado" : ""}` : "weight ?";
+  const count = s.quantity == null || s.unit === "kg" ? null : `${s.quantityBasis === "estimated" ? "~" : ""}${s.quantity}${s.unit ? ` ${s.unit}` : ""}`;
+  const head = count ?? (s.unit === "kg" ? null : "quantity ?");
+  return [head, s.item ?? s.category ?? "item ?", weight, s.location ? `at ${s.location}` : "location ?", s.deadlineHour != null ? `by ${s.deadlineHour}:00` : "deadline ?", `condition ${s.condition.replaceAll("_", " ")}`].filter(Boolean).join(" · ");
 }

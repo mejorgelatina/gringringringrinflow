@@ -3,13 +3,15 @@ import { useEffect, useState } from "react";
 import type { Tracking } from "@/lib/agent/tracking";
 import type { AgentRun, AgentStatus } from "@/lib/agent/types";
 import { loadSaved, readRun, save, TrackingCard } from "./tracking-card";
+import { IccCard } from "../icc/icc-card";
 import s from "./agent.module.css";
 
 const EXAMPLES = [
   { label: "clear offer", text: "Tenemos 20 cajas de pan fresco en la colonia Roma, hay que recogerlas antes de las 6 pm." },
   { label: "needs a question", text: "Nos sobraron como unas 15 cajas de jitomate en Centro" },
   { label: "with a photo", text: "Tenemos 12 cajas de manzanas frescas en la colonia Roma, recoger antes de las 4 pm" },
-  { label: "supermarket returns", text: "Somos el súper de la colonia Roma: tenemos 30 cajas de huevos echados a perder por devoluciones, recoger antes de las 6 pm" }
+  { label: "photo, no count", text: "Nos quedaron estas cajas de comida. Las pueden recoger hoy." },
+  { label: "supermarket returns", text: "Somos el súper de la colonia Roma: tenemos 3 cajas de huevos echados a perder por devoluciones, recoger antes de las 6 pm" }
 ];
 const STATUS: Record<AgentStatus, { label: string; tone: string }> = {
   running: { label: "running", tone: "review" },
@@ -32,7 +34,7 @@ async function toDataUrl(file: File): Promise<string> {
 export default function AgentConsole() {
   const [message, setMessage] = useState(EXAMPLES[0].text);
   const [image, setImage] = useState<string | null>(null);
-  const [fixture, setFixture] = useState<"" | "clean" | "mold">("");
+  const [fixture, setFixture] = useState<"" | "clean" | "mold" | "containers">("");
   const [run, setRun] = useState<AgentRun | null>(null);
   const [tracking, setTracking] = useState<Tracking | null>(null);
   const [token, setToken] = useState("");
@@ -44,6 +46,7 @@ export default function AgentConsole() {
   const [notes, setNotes] = useState("");
   const [inspected, setInspected] = useState<"" | "edible" | "past_prime" | "inedible">("");
   const [qty, setQty] = useState("");
+  const [kg, setKg] = useState("");
 
   async function call(url: string, body: unknown) {
     setBusy(true); setError("");
@@ -72,7 +75,7 @@ export default function AgentConsole() {
 
   return <main className="shell">
     <header className="topbar"><a className="wordmark" href="/intake"><img src="/grinflow-logo.svg" alt="grinflow"/></a><div className="topmeta"><span className="dot"/> intake agent · muse spark <a href="/intake" style={{ marginLeft: 12, color: "#087c62", fontWeight: 700, textDecoration: "none" }}>web intake ↗</a></div></header>
-    <section className="hero"><div className="eyebrow">agent console</div><h1>the model decides.<br/><em>the checks don&apos;t move.</em></h1><p className="lede">muse spark picks one tool per turn: read the message, look at the photo, ask the matching engine, ask the donor, hand off, or propose. every proposal passes code rules and a second reviewer before a person signs off.</p></section>
+    <section className="hero"><div className="eyebrow">agent console</div><h1>the model decides.<br/><em>the checks don&apos;t move.</em></h1><p className="lede">muse spark picks one tool per turn: read the message, look at the photo, ask the matching engine, ask the donor, hand off, or propose. every lot is characterized with icc first (weight, volume, condition, risk, each marked declarado, estimado, medido or verificado), and every proposal passes code rules and a second reviewer before a person signs off.</p></section>
     <div className="warning"><span className="warning-icon">!</span><div><strong>synthetic data · simulated operations</strong><p>nothing is sent to donors, recipients or drivers from this page. donor replies below are typed by you.</p></div></div>
 
     <section className="workbench">
@@ -80,7 +83,7 @@ export default function AgentConsole() {
       <div className="example-row"><span>try:</span>{EXAMPLES.map(e => <button key={e.label} className="secondary" onClick={() => setMessage(e.text)}>{e.label}</button>)}</div>
       <label htmlFor="message">incoming message</label>
       <textarea id="message" className="keep-case" value={message} onChange={e => setMessage(e.target.value)} maxLength={5000}/>
-      <div className="photo-row"><label className="photo-pick" htmlFor="photo">{image ? "change photo" : "+ add a photo (optional)"}</label><input id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => pickPhoto(e.target.files?.[0])} hidden/>{image && <><img className="photo-thumb" src={image} alt="donor photo preview"/><button className="secondary" onClick={() => setImage(null)}>remove</button><label className="fixture-pick">offline demo result<select value={fixture} onChange={e => setFixture(e.target.value as typeof fixture)}><option value="">not analyzed</option><option value="clean">simulate: looks intact</option><option value="mold">simulate: visible mold</option></select></label></>}</div>
+      <div className="photo-row"><label className="photo-pick" htmlFor="photo">{image ? "change photo" : "+ add a photo (optional)"}</label><input id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => pickPhoto(e.target.files?.[0])} hidden/>{image && <><img className="photo-thumb" src={image} alt="donor photo preview"/><button className="secondary" onClick={() => setImage(null)}>remove</button><label className="fixture-pick">offline demo result<select value={fixture} onChange={e => setFixture(e.target.value as typeof fixture)}><option value="">not analyzed</option><option value="clean">simulate: looks intact</option><option value="mold">simulate: visible mold</option><option value="containers">simulate: ~12 food containers</option></select></label></>}</div>
       <div className="input-foot"><span>{message.length}/5,000 characters</span><button className="primary" onClick={start} disabled={busy || !message.trim()}>{busy ? "running…" : "run the agent ↗"}</button></div>
       {error && <div className="error" role="alert">{error}</div>}
     </section>
@@ -88,6 +91,7 @@ export default function AgentConsole() {
     {run && <section className="section-block">
       <div className="section-head"><div><div className="eyebrow">02 — collection</div><h2>where this rescue is.</h2></div><a className="step" href={`/track?code=${run.code}`}>public tracking page ↗</a></div>
       {tracking && <TrackingCard t={tracking}/>}
+      {run.icc && <IccCard icc={run.icc}/>}
       <details className={s.log}><summary>agent log · {run.turns.length} turns · {run.metaCalls} meta call(s)</summary>
       <p className={s.meta}><span className={`status ${STATUS[run.status].tone}`}>{STATUS[run.status].label}</span><span>planner: {run.planner}</span><span>{run.metaCalls} meta call(s)</span><span>turns {run.turns.length}/{run.turnLimit}</span>{!signed && <span>run state signed with the demo key</span>}</p>
       <ol className={s.timeline}>{run.turns.map(t => <li key={t.n} className={`${s.turn} ${t.tool === "operator" ? s.operator : t.outcome === "refused" ? s.refused : t.outcome === "stopped" ? s.stopped : ""}`}>
@@ -118,7 +122,7 @@ export default function AgentConsole() {
       {(run.status === "escalated" || run.status === "needs_input" || run.status === "awaiting_approval") && run.supply && <div className={s.panel}>
         <div className="tiny-label">{run.status === "escalated" ? "handed to you" : "operator inspection (optional)"}</div>
         {run.handoff && <p className="keep-case">{run.handoff}</p>}
-        <div className={s.row}><label>reviewer<input value={reviewer} onChange={e => setReviewer(e.target.value)} maxLength={80}/></label><label>condition after inspection<select value={inspected} onChange={e => setInspected(e.target.value as typeof inspected)}><option value="">choose…</option><option value="edible">fit for people</option><option value="past_prime">past prime</option><option value="inedible">not edible</option></select></label><label>confirmed quantity<input inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} placeholder={run.supply.quantity != null ? String(run.supply.quantity) : "e.g. 12"}/></label><button className="primary" disabled={busy || !inspected || reviewer.trim().length < 2} onClick={() => resume({ type: "inspection", condition: inspected, reviewer, ...(Number(qty) > 0 ? { quantity: Number(qty) } : {}) })}>record inspection and continue ↗</button></div>
+        <div className={s.row}><label>reviewer<input value={reviewer} onChange={e => setReviewer(e.target.value)} maxLength={80}/></label><label>condition after inspection<select value={inspected} onChange={e => setInspected(e.target.value as typeof inspected)}><option value="">choose…</option><option value="edible">fit for people</option><option value="past_prime">past prime</option><option value="inedible">not edible</option></select></label><label>confirmed quantity<input inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} placeholder={run.supply.quantity != null ? String(run.supply.quantity) : "e.g. 12"}/></label><label>weight checked on site (kg)<input inputMode="decimal" value={kg} onChange={e => setKg(e.target.value)} placeholder={run.icc?.physical.weightKg ? `est. ${Math.round(run.icc.physical.weightKg.value.point)}` : "e.g. 37"}/></label><button className="primary" disabled={busy || !inspected || reviewer.trim().length < 2} onClick={() => resume({ type: "inspection", condition: inspected, reviewer, ...(Number(qty) > 0 ? { quantity: Number(qty) } : {}), ...(Number(kg) > 0 ? { weightKg: Number(kg) } : {}) })}>record inspection and continue ↗</button></div>
       </div>}
 
       {run.status === "paused" && <div className={s.row}><button className="secondary" disabled={busy} onClick={() => resume({ type: "continue" })}>give it a few more turns</button></div>}

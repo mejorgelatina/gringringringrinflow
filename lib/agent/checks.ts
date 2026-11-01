@@ -24,8 +24,12 @@ export function checkQuestion(run: AgentRun, field: string, question: string): C
   const s = run.supply;
   if (field === "offer") return s ? fail("there is already an offer; ask about a specific field") : { passed: true };
   if (!s) return fail("there is no offer yet; ask about the offer itself (field \"offer\")");
+  const w = run.icc?.physical.weightKg;
   const uncertain: Record<string, boolean> = {
     quantity: s.quantity == null || s.quantityBasis === "estimated",
+    // asking for the weight is fine until someone declared, measured or verified it
+    weight: !w || w.provenance === "estimado",
+    storage: !!run.icc?.missing.some(m => m.field === "storage"),
     deadline_hour: s.deadlineHour == null,
     location: !s.location,
     category: !s.category,
@@ -60,6 +64,11 @@ export function checkProposal(run: AgentRun, recipientId: string, capacityId: st
   const higher = evaluateSupply(run.supply, run.donorTexts.join("\n")).find(c => c.feasible && TIER_ORDER.indexOf(c.tier) < TIER_ORDER.indexOf(listed.tier as LegacyTier) && !run.rejectedPairs.includes(`${c.recipientId}+${c.capacityId}`));
   if (higher) problems.push(`${higher.recipient} (${higher.tier}) is feasible: food for people comes before transformation, and transformation before compost`);
   if (listed.tier === "people" && run.condition?.effective !== "edible") problems.push("food for people needs a condition stated by the donor or confirmed by a person, with no doubt from the photo");
+  // Never invent a weight: a kilo figure must be the ICC weight, and an estimate must say it is one.
+  const kgSaid = [...rationale.matchAll(/(~|aprox\.?\s*|about\s*)?(\d+(?:[.,]\d+)?)(?:\s*[–-]\s*\d+(?:[.,]\d+)?)?\s*kg\b/gi)];
+  const w = run.icc?.physical.weightKg;
+  if (kgSaid.length && !w) problems.push("the weight is unknown: don't state kilos, ask the donor for the weight");
+  else if (w && w.provenance === "estimado" && kgSaid.some(m => !m[1]) && !/estimad|aprox|estimated|approx/i.test(rationale)) problems.push("the weight is an estimate (ICC: estimado): mark it as approximate, e.g. ~40 kg estimado");
   if (rationale.length < 10 || rationale.length > 400) problems.push("the rationale must be one or two sentences (10 to 400 characters)");
   if (!quotes.length || quotes.length > 3) problems.push("cite 1 to 3 quotes from the donor");
   const said = run.donorTexts.join("\n");

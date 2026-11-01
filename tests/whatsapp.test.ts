@@ -62,7 +62,7 @@ test("handler: Spanish offer gets a Spanish reply with one question, preview onl
   const t = await handleInbound({ id: "m1", from: "5215512345678", timestamp: "1", type: "text", text: "Tenemos 20 cajas de pan en la colonia Roma", mediaId: null }, { deps: localDeps(calls), allowlist: undefined, send: null, fetchMedia: null, source: "simulator" })
   assert.deepEqual(calls, { text: 0, photo: 0 })
   assert.equal(t.replyStatus, "preview")
-  assert.match(t.reply!, /Registré: 20 cajas, pan, en Roma/)
+  assert.match(t.reply!, /Registré: 20 cajas, pan, ~30–50 kg estimado, en Roma/)
   assert.match(t.reply!, /hora/)
   assert.match(t.reply!, /Una persona del equipo/)
   assert.equal(t.from, "••••5678")
@@ -90,7 +90,7 @@ test("handler: a failed media download continues with the caption and says so", 
 test("English messages get English replies", () => {
   assert.equal(looksEnglish("We have about 12 boxes of apples"), true)
   assert.equal(looksEnglish("Tenemos 20 cajas de pan"), false)
-  const r = composeReply("We have stuff", { provider: "", model: null, extraction: { events: [], residual_text: "", needs_review: false, review_reasons: [] }, supply: null, demand: null, photo: null, condition: null, candidates: [], metaCalls: 0 })
+  const r = composeReply("We have stuff", { provider: "", model: null, extraction: { events: [], residual_text: "", needs_review: false, review_reasons: [] }, supply: null, demand: null, photo: null, condition: null, icc: null, candidates: [], metaCalls: 0 })
   assert.match(r, /didn't find a food offer or a need/)
 })
 

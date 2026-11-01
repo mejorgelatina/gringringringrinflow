@@ -46,6 +46,15 @@ export function evaluateDestination(resource: Resource, dest: Participant, netwo
 
   const eta = etaMinutes(resource.location, dest.location, Math.max(now, resource.pickupWindow.start))
   const zone = zoneFor(network.area, eta)
+  // ICC bands (jor, 2026-11-01): alto → food banks and large kitchens; medio → same-day kitchens and
+  // shelters close by; bajo → out of the food route, to transformation or compost.
+  const band = resource.icc?.band
+  if (need.tier === "people" && band && band !== "pendiente") {
+    const takes = need.iccBands ?? ["alto", "medio"]
+    if (band === "bajo") block("icc_band_bajo", `icc ${resource.icc!.score ?? ""} (banda baja): fuera de la ruta de alimentos.`)
+    else if (!takes.includes(band)) block("icc_band_not_accepted", `Solo recibe lotes de banda ${takes.join(" o ")}; este lote es banda ${band}.`)
+    else if (band === "medio" && zone !== "a") block("icc_medio_far", `Banda media: vida útil corta, solo destinos cercanos (zona a, ≤ ${network.area.zoneAMaxMinutes} min).`)
+  }
   if (zone === "c") block("out_of_zone", `${eta} min de traslado: fuera de la zona operativa; solo con una extensión logística confirmada.`)
 
   let deliveryModes: DeliveryMode[] = []

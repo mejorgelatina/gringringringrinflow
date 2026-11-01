@@ -7,6 +7,8 @@ import { metrics, trackingStages } from "@/lib/network/outcomes";
 import { TIER_LABEL, TIERS, type Participant } from "@/lib/network/types";
 import { hhmm } from "@/lib/network/zones";
 import { CoverageMap } from "./coverage-map";
+import { characterizeResource } from "@/lib/icc/characterize";
+import { IccCard } from "../icc/icc-card";
 import s from "./network.module.css";
 
 const NAMES = Object.fromEntries(DEMO_NETWORK.participants.map(p => [p.id, p.name]));
@@ -55,6 +57,10 @@ export default function NetworkPage() {
   const finals = SCENARIOS.map(x => scenarios[x].steps.at(-1)!.state);
   const m = metrics(finals);
   const pick = (x: ScenarioId) => { setId(x); setStep(0); };
+  // what receivers confirmed is the measured weight; until then, the donor's kg stay declarado
+  const delivered = c.reservations.filter(r => r.status === "delivered" && r.receivedKg != null);
+  const received = c.status === "closed" && delivered.length ? { kg: delivered.reduce((n, r) => n + (r.receivedKg ?? 0), 0), by: delivered.map(r => NAMES[r.participantId]).join(", "), at: hhmm(Math.max(...delivered.map(r => r.receivedAt ?? 0))) } : null;
+  const icc = characterizeResource(c.resource, received, () => new Date(c.publishedAt).toISOString());
 
   return <main className="shell">
     <header className="topbar"><a className="wordmark" href="/"><img src="/grinflow-logo.svg" alt="grinflow"/></a><div className="topmeta"><span className="dot"/> red de recursos · datos sintéticos</div></header>
@@ -96,6 +102,11 @@ export default function NetworkPage() {
           <ul className={s.log}>{c.events.map(e => <li key={e.seq}>{hhmm(e.at)} · {describeEvent(e.type, e.detail)}</li>)}</ul>
         </div>
       </div>
+    </section>
+
+    <section className="section-block">
+      <div className="section-head"><div><div className="eyebrow">icc · caracterización del lote</div><h2>qué entró físicamente a la red.</h2><p className="subhead">el mismo registro que producen whatsapp, /intake y el agente. los kg del donante quedan como declarados; cuando los receptores confirman lo recibido, el peso pasa a medido.</p></div></div>
+      <IccCard icc={icc}/>
     </section>
 
     <section className="section-block">

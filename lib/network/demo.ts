@@ -54,7 +54,7 @@ export const DEMO_PARTICIPANTS: Participant[] = [
   },
   {
     id: "rec-narvarte", name: "casa hogar narvarte", roles: ["receiver"], location: { lat: 19.396, lng: -99.156 }, area: "narvarte", verified: true, whatsappOptIn: true, serviceRadiusKm: 4,
-    need: { tier: "people", categories: ["panificados", "lacteos", "abarrotes"], conditions: ["edible"], requires: [], minKg: 3, maxKg: 15, weeklyCapacityKg: 60, usedThisWeekKg: 10, receiving: { days: EVERY_DAY, from: H(12), to: H(20) }, selfPickup: false, selfPickupMaxMinutes: 0, notes: "sin vehículo; paga envío cuando le conviene" },
+    need: { tier: "people", categories: ["panificados", "lacteos", "abarrotes"], conditions: ["edible"], requires: [], minKg: 3, maxKg: 15, weeklyCapacityKg: 60, usedThisWeekKg: 10, receiving: { days: EVERY_DAY, from: H(12), to: H(20) }, selfPickup: false, selfPickupMaxMinutes: 0, iccBands: ["alto"], notes: "sin vehículo; paga envío cuando le conviene; sin cocina para consumo inmediato: solo banda alta" },
   },
   {
     id: "rec-norte", name: "albergue norte", roles: ["receiver"], location: { lat: 19.489, lng: -99.127 }, area: "gustavo a. madero", verified: true, whatsappOptIn: true,

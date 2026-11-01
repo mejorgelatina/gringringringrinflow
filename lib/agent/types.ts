@@ -17,7 +17,7 @@ export type AgentStatus =
   | "approved" // operator signed off; still a simulated action
   | "paused"; // turn limit or a failed model call
 
-export type Candidate = { recipientId: string; recipient: string; tier: string; capacityId: string; capacity: string; routeKm: number | null; feasible: boolean; blockers: { code: string; label: string }[] };
+export type Candidate = { recipientId: string; recipient: string; tier: string; capacityId: string; capacity: string; routeKm: number | null; feasible: boolean; blockers: { code: string; label: string }[]; warnings?: { code: string; label: string }[] };
 
 export type Proposal = { recipientId: string; capacityId: string; recipient: string; capacity: string; tier: string; routeKm: number | null; rationale: string; quotes: string[]; judge: { by: string; supported: boolean; note: string } };
 
@@ -40,6 +40,8 @@ export type AgentRun = {
   supplyVersion: number;
   photo: PhotoResult | null;
   condition: ConditionEvidence | null;
+  /** ICC characterization of the current offer, rebuilt whenever the offer, photo or inspection changes. */
+  icc?: import("../icc/types.ts").IccRecord | null;
   candidates: Candidate[] | null;
   candidatesVersion: number;
   question: { field: string; text: string } | null;
