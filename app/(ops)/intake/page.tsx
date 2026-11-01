@@ -51,7 +51,7 @@ export default function Home() {
     setReviewBusy(true); setError("");
     try {
       const quantity = reviewQty.trim() ? Number(reviewQty) : undefined;
-      const response = await fetch("/api/intake/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ supply: result.supply, stated: result.condition.stated, observed: result.condition.observed, confirmation: { condition: reviewCondition, reviewer }, ...(quantity ? { quantity } : {}) }) });
+      const response = await fetch("/api/intake/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ supply: result.supply, stated: result.condition.stated, observed: result.condition.observed, confirmation: { condition: reviewCondition, reviewer }, message, ...(quantity ? { quantity } : {}) }) });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.message || "Could not record the review");
       setResult({ ...result, supply: data.supply, condition: data.condition, candidates: data.candidates });

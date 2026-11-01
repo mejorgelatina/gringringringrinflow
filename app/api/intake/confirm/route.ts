@@ -5,6 +5,7 @@ import { confirmIntake } from "@/lib/intake/process";
 const ConditionEnum = z.enum(["edible", "past_prime", "inedible", "unknown"]);
 const Body = z.object({
   supply: z.object({
+    item: z.string().max(200).nullable().optional(),
     category: z.string().nullable(),
     quantity: z.number().nonnegative().nullable(),
     quantityBasis: z.enum(["stated", "estimated", "confirmed"]).nullable(),
@@ -19,7 +20,9 @@ const Body = z.object({
     reviewer: z.string().trim().min(2).max(80),
     note: z.string().trim().max(500).optional()
   }),
-  quantity: z.number().positive().max(100000).optional()
+  quantity: z.number().positive().max(100000).optional(),
+  // The donor's words, so material specs (clean, dry…) still count after review.
+  message: z.string().max(4000).optional()
 });
 export const runtime = "nodejs";
 
@@ -27,8 +30,8 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_request", message: "A reviewer name and a confirmed condition are required." }, { status: 400 });
-  const { supply, stated, observed, confirmation, quantity } = parsed.data;
+  const { supply, stated, observed, confirmation, quantity, message } = parsed.data;
   const at = new Date().toISOString();
-  const result = confirmIntake(supply, stated, observed, { ...confirmation, at }, quantity);
+  const result = confirmIntake(supply, stated, observed, { ...confirmation, at }, quantity, message ?? "");
   return NextResponse.json({ ok: true, ...result, audit: { reviewer: confirmation.reviewer, at, decision: confirmation.condition, quantity: quantity ?? null, modelObservation: observed } });
 }

@@ -74,14 +74,14 @@ test("AG-04: invented quotes and blocked pairs are refused in code; three refusa
   const planner = scripted([
     call("extract_event"),
     call("find_matches"),
-    call("propose_match", { recipientId: "recip-a", capacityId: "cap-a", rationale: "20 cajas de pan para La Esperanza.", quotes: ["40 cajas de pan"] }),
-    call("propose_match", { recipientId: "recip-a", capacityId: "cap-b", rationale: "20 cajas de pan para La Esperanza.", quotes: ["20 cajas de pan"] }),
+    call("propose_match", { recipientId: "rec-doctores", capacityId: "pickup", rationale: "20 cajas de pan para el comedor.", quotes: ["40 cajas de pan"] }),
+    call("propose_match", { recipientId: "rec-esperanza", capacityId: "none", rationale: "20 cajas de pan para Nueva Esperanza.", quotes: ["20 cajas de pan"] }),
     call("propose_match", { recipientId: "recip-x", capacityId: "cap-a", rationale: "20 cajas de pan.", quotes: ["20 cajas de pan"] }),
   ])
   const run = await startRun(BREAD, undefined, offline(), planner)
   assert.deepEqual(run.turns.slice(2).map(t => t.check), ["proposal_rules", "proposal_rules", "proposal_rules"])
   assert.match(run.turns[2].summary, /quote not found/)
-  assert.match(run.turns[3].summary, /transport availability is not confirmed/)
+  assert.match(run.turns[3].summary, /sin validar/)
   assert.equal(run.status, "escalated")
   assert.equal(run.proposal, null)
 })
@@ -89,7 +89,7 @@ test("AG-04: invented quotes and blocked pairs are refused in code; three refusa
 test("AG-05: the claims check refuses a rationale that says more than its quotes", async () => {
   const planner = scripted([
     call("extract_event"), call("find_matches"),
-    call("propose_match", { recipientId: "recip-a", capacityId: "cap-a", rationale: "50 cajas de pan, recoger a las 9.", quotes: ["20 cajas de pan"] }),
+    call("propose_match", { recipientId: "rec-doctores", capacityId: "pickup", rationale: "50 cajas de pan, recoger a las 9.", quotes: ["20 cajas de pan"] }),
   ])
   const run = await startRun(BREAD, undefined, offline(), planner)
   assert.equal(run.turns[2].check, "claims_check")
@@ -103,7 +103,7 @@ test("AG-06: plain text is refused, asking about a known field is refused, food 
     call("extract_event"),
     call("ask_donor", { field: "location", question: "¿dónde?" }),
     call("find_matches"),
-    call("propose_match", { recipientId: "recip-a", capacityId: "cap-a", rationale: "20 cajas de pan en Roma.", quotes: ["20 cajas de pan"] }),
+    call("propose_match", { recipientId: "rec-doctores", capacityId: "none", rationale: "20 cajas de pan en Roma.", quotes: ["20 cajas de pan"] }),
   ])
   const run = await startRun("Tenemos 20 cajas de pan en la colonia Roma, antes de las 6 pm.", undefined, offline(), planner)
   assert.equal(run.turns[0].check, "one_tool_per_turn")
@@ -182,30 +182,43 @@ test("TR-03: a question to the donor and a handoff show as waiting, not as progr
   assert.equal(t2.stages.find(s => s.key === "condition")?.state, "waiting")
 })
 
-test("AG-T1: spoiled supermarket eggs go to the eggshell maker, not to people and not to compost", async () => {
+const SHELLS = "Tenemos 12 kg de cáscara de huevo limpia y seca, sin restos, no apta para consumo, en la colonia Condesa, recoger antes de las 2 pm"
+
+test("AG-T1: whole spoiled eggs are not a maker's input: not people, not the eggshell studio, compost", async () => {
   const msg = "Somos el súper de la colonia Roma: tenemos 30 cajas de huevos echados a perder por devoluciones, recoger antes de las 6 pm"
   const run = await startRun(msg, undefined, offline(), createScriptedPlanner())
   assert.equal(run.supply?.condition, "inedible")
   assert.equal(run.status, "awaiting_approval")
-  assert.equal(run.proposal?.tier, "transformation")
-  assert.equal(run.proposal?.recipientId, "recip-m")
+  assert.equal(run.proposal?.tier, "valorization")
   assert.ok(run.candidates?.filter(c => c.tier === "people").every(c => !c.feasible))
+  assert.ok(run.candidates?.filter(c => c.recipientId === "mak-cascara").every(c => c.blockers.some(b => b.code === "material_not_accepted")))
+})
+
+test("AG-T1b: clean, dry eggshell goes to the eggshell maker, who picks it up for free", async () => {
+  const run = await startRun(SHELLS, undefined, offline(), createScriptedPlanner())
+  assert.equal(run.status, "awaiting_approval")
+  assert.equal(run.proposal?.tier, "transformation")
+  assert.equal(run.proposal?.recipientId, "mak-cascara")
+  assert.equal(run.proposal?.capacityId, "pickup")
+  // the ceramics studio needs ground shell, which the donor did not say
+  assert.ok(run.candidates?.filter(c => c.recipientId === "mak-ceramica").every(c => c.blockers.some(b => b.code === "specs_not_met")))
 })
 
 test("AG-T2: the cascade is enforced in code: compost is refused while a maker or people route is feasible", async () => {
-  const eggs = "Tenemos 30 cajas de huevos echados a perder en la colonia Roma, recoger antes de las 6 pm"
   const planner = scripted([
     call("extract_event"),
     call("find_matches"),
-    call("propose_match", { recipientId: "recip-m", capacityId: "cap-a", rationale: "30 cajas de huevos para el taller.", quotes: ["30 cajas de huevos"] }),
+    call("propose_match", { recipientId: "cmp-guerrero", capacityId: "veh-luis", rationale: "12 kg de cáscara a composta.", quotes: ["12 kg de cáscara de huevo"] }),
+    call("propose_match", { recipientId: "mak-cascara", capacityId: "pickup", rationale: "12 kg de cáscara de huevo para el estudio.", quotes: ["12 kg de cáscara de huevo"] }),
   ])
-  const run = await startRun(eggs, undefined, offline(), planner)
+  const run = await startRun(SHELLS, undefined, offline(), planner)
+  assert.ok(run.turns.some(t => t.outcome === "refused" && /transformation before compost/.test(t.summary)))
   assert.equal(run.proposal?.tier, "transformation")
 
   const bread = scripted([
     call("extract_event"),
     call("find_matches"),
-    call("propose_match", { recipientId: "recip-c", capacityId: "cap-a", rationale: "20 cajas de pan a composta.", quotes: ["20 cajas de pan"] }),
+    call("propose_match", { recipientId: "cmp-guerrero", capacityId: "veh-moto", rationale: "20 cajas de pan a composta.", quotes: ["20 cajas de pan"] }),
   ])
   const refused = await startRun(BREAD, undefined, offline(), bread)
   assert.equal(refused.proposal, null)
@@ -214,6 +227,25 @@ test("AG-T2: the cascade is enforced in code: compost is refused while a maker o
 
 test("AG-T3: a maker only takes its material: spoiled chicken is not sent to the eggshell studio", async () => {
   const run = await startRun("Tenemos 10 cajas de pollo echado a perder en la colonia Roma, recoger antes de las 6 pm", undefined, offline(), createScriptedPlanner())
-  assert.ok(run.candidates?.filter(c => c.recipientId === "recip-m").every(c => c.blockers.some(b => b.code === "material_not_accepted")))
+  assert.ok(run.candidates?.filter(c => c.recipientId === "mak-cascara").every(c => c.blockers.some(b => b.code === "material_not_accepted")))
   assert.notEqual(run.proposal?.tier, "transformation")
+})
+
+test("AG-N1: the agent answers with the network engine: delivery options carry who pays, and out-of-area places are not guessed", async () => {
+  const run = await startRun(BREAD, undefined, offline(), createScriptedPlanner())
+  assert.equal(run.proposal?.recipientId, "rec-doctores")
+  assert.match(run.proposal!.capacity, /picks up · free/)
+  assert.ok(run.candidates?.some(c => c.capacityId === "veh-moto" && /paid by the receiver/.test(c.capacity)))
+  const far = await startRun("Tenemos 20 cajas de pan fresco en la colonia Polanco, recoger antes de las 6 pm.", undefined, offline(), createScriptedPlanner())
+  assert.ok(far.candidates?.every(c => !c.feasible && c.blockers.some(b => b.code === "route_unverified")))
+})
+
+test("AG-N2: sign-off opens the operation in the network: hold, delivery choice and handoff code", async () => {
+  const run = await startRun(BREAD, undefined, offline(), createScriptedPlanner())
+  const done = await resumeRun(run, { type: "decision", decision: "approved", reviewer: "ana", notes: "" }, offline(), createScriptedPlanner())
+  assert.equal(done.operation?.recipientId, "rec-doctores")
+  assert.equal(done.operation?.mode, "pickup")
+  assert.equal(done.operation?.costMxn, 0)
+  assert.match(done.operation?.handoffCode ?? "", /^\d{4}$/)
+  assert.match(done.turns.at(-1)!.summary, /pickup code/)
 })

@@ -1,4 +1,4 @@
-import { evaluateCandidates } from "../engines/matching.mjs";
+import { evaluateSupply } from "../network/supply.ts";
 import type { IntakeDeps, Supply } from "../intake/process.ts";
 import { LOCAL_PROVIDER } from "../intake/process.ts";
 import { assessPhotoLocally, PHOTO_FIXTURES, resolveCondition, routePhotoAssessment, type ObservedCondition } from "../meta/photo-policy.ts";
@@ -146,7 +146,7 @@ async function assessPhoto({ run, deps, image }: ToolContext): Promise<ToolResul
 
 function findMatches({ run }: ToolContext): ToolResult {
   if (!run.supply) return refuse("no_offer", "there is no offer yet: call extract_event first, or ask the donor what they have");
-  run.candidates = (evaluateCandidates(run.supply) as Candidate[]).map(c => ({ recipientId: c.recipientId, recipient: c.recipient, tier: c.tier, capacityId: c.capacityId, capacity: c.capacity, routeKm: c.routeKm ?? null, feasible: c.feasible, blockers: c.blockers }));
+  run.candidates = evaluateSupply(run.supply, run.donorTexts.join("\n")).map(c => ({ recipientId: c.recipientId, recipient: c.recipient, tier: c.tier, capacityId: c.capacityId, capacity: c.capacity, routeKm: c.routeKm ?? null, feasible: c.feasible, blockers: c.blockers }));
   run.candidatesVersion = run.supplyVersion;
   const feasible = run.candidates.filter(c => c.feasible);
   return {

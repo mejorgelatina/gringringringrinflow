@@ -104,7 +104,9 @@ export function trackingView(run: AgentRun, nowIso = new Date().toISOString()): 
   });
 
   const eta = estimate(run, nowIso);
-  stages.push({ key: "pickup", label: "pickup", state: approved ? "current" : "pending", at: null, detail: eta ? `${approved ? "estimated" : "if approved now, about"} ${eta.pickup}${eta.late ? " · after the donor's deadline" : ""} · simulated` : "", checks: [] });
+  const op = run.operation;
+  const opDetail = op ? ` · ${op.mode === "pickup" ? `receiver collects, free · code ${op.handoffCode}` : `${op.mode} $${op.costMxn} mxn, paid by the receiver once accepted`}` : "";
+  stages.push({ key: "pickup", label: "pickup", state: approved ? "current" : "pending", at: null, detail: eta ? `${approved ? "estimated" : "if approved now, about"} ${eta.pickup}${eta.late ? " · after the donor's deadline" : ""}${opDetail} · simulated` : "", checks: [] });
   stages.push({ key: "delivered", label: "delivered", state: "pending", at: null, detail: eta && p ? `${approved ? "estimated" : "if approved now, about"} ${eta.delivery} at ${p.recipient} · simulated` : "", checks: [] });
 
   const headline =
