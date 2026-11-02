@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto"
+import type { Firestore } from "firebase-admin/firestore"
 import { firestore } from "../firebase/admin.ts"
 import type { Conversation, InboxItem, Registration } from "./types.ts"
 
@@ -46,8 +47,8 @@ export function createMemoryStore(): RegistryStore {
 
 const hash = (v: string) => createHash("sha256").update(v).digest("hex").slice(0, 40)
 
-function createFirestoreStore(): RegistryStore | null {
-  const db = firestore()
+/** Exported for contract tests, which inject a fake; production calls it without arguments. */
+export function createFirestoreStore(db: Firestore | null = firestore()): RegistryStore | null {
   if (!db) return null
   const conv = db.collection("gf_conversations")
   const regs = db.collection("gf_registrations")

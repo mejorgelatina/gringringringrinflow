@@ -139,4 +139,4 @@ All places, distances and availability in the demos are synthetic. Distances are
 
 ### Golden-set baseline (local fallback, no Meta calls)
 
-`pnpm build && pnpm start`, then `GRINFLOW_BASE_URL=http://localhost:3000 pnpm evaluate`. On 2026-10-29 the rule-based local fallback scored **104/156 field checks (66.7%)** and **5/30 exact cases**, with **0 unsafe edible false positives**. Most misses are `needsReview` (17) and `kind` (13). This is the bar a Meta-backed run should beat; tuning the fallback to the golden set would only overfit it.
+`pnpm build && pnpm start`, then `GRINFLOW_BASE_URL=http://localhost:3000 pnpm evaluate`. On 2026-10-29 the rule-based local fallback scored **104/156 field checks (66.7%)** and **5/30 exact cases**, with **0 unsafe edible false positives**. Most misses are `needsReview` (17) and `kind` (13). On 2026-11-02 (branch `muse/m1-baseline`) the same harness scored **110/156 (70.5%)** and **6/30 exact cases**, provider local-only. This is the bar a Meta-backed run should beat; tuning the fallback to the golden set would only overfit it.
