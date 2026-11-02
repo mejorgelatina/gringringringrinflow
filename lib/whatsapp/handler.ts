@@ -7,10 +7,13 @@ import type { Conversation, Registration } from "../registry/types.ts";
 import { continueOnboarding, startOnboarding } from "../registry/onboarding.ts";
 import { wantsToRegister } from "../registry/parse.ts";
 import { refreshLiveNetwork } from "../registry/network.ts";
+import { runReply, type AgentBridge } from "./agent-bridge.ts";
 
 export type TraceStep = { at: string; step: string; detail: string };
 export type Trace = {
   id: string;
+  /** The agent run this message opened or answered, if any. */
+  agentRun?: { code: string; status: string; started: boolean } | null;
   source: "webhook" | "simulator" | "web";
   /** Set while the sender is registering: the step answered, and the registration id once finished. */
   onboarding?: { step: string; registrationId: string | null } | null;
@@ -36,6 +39,8 @@ export type HandlerContext = {
   store?: RegistryStore | null;
   /** Overrides the conversation key (the web chat passes a per-browser session). Default: source + number. */
   conversationKey?: string;
+  /** When set (and a store is present), a complete offer opens an agent run and the donor's answers go to it. */
+  agent?: AgentBridge | null;
 };
 
 /** A conversation goes quiet after this long; the next message starts fresh. */
@@ -132,6 +137,17 @@ function freshConversation(key: string, phone: string, source: Trace["source"], 
 
 const asksSomething = (reply: string) => /\?/.test(reply);
 
+/** Keeps the team inbox row and the donor's 24 h window in step with a run the donor just moved. */
+async function touchRun(store: RegistryStore, code: string, status: string, at: string, step: (s: string, d: string) => void) {
+  try {
+    const link = await store.getRunLink(code);
+    if (!link) return;
+    await store.linkRun({ ...link, lastInboundAt: at });
+    const row = await store.getInbox(link.inboxId);
+    if (row) await store.addInbox({ ...row, at, runCode: code, runStatus: status });
+  } catch (e) { step("inbox", `could not update the team inbox (${e instanceof Error ? e.message : "error"})`); }
+}
+
 export async function handleInbound(msg: InboundMessage, ctx: HandlerContext): Promise<Trace> {
   const now = ctx.now ?? (() => new Date());
   const trace: Trace = { id: msg.id, source: ctx.source, from: maskPhone(msg.from), receivedAt: now().toISOString(), steps: [], reply: null, replyStatus: "none", metaCalls: 0, intake: null };
@@ -216,8 +232,36 @@ export async function handleInbound(msg: InboundMessage, ctx: HandlerContext): P
   const fresh = msg.text.trim() || (image ? "(photo without caption)" : "");
   if (!fresh && !pin) { step("ignored", "Empty message."); return trace; }
 
-  // An answer to our last question completes the offer instead of starting over.
-  const earlier = conv?.openQuestion ? conv.history.map(t => t.text) : [];
+  // The agent asked this donor something: the answer goes to that run, not to a new intake.
+  const agent = store && conv ? ctx.agent ?? null : null;
+  if (agent && conv?.activeRun && fresh && !image) {
+    const activeCode = conv.activeRun.code;
+    try {
+      const waiting = await agent.load(activeCode);
+      if (waiting?.status === "needs_input") {
+        const run = await agent.resume(waiting.code, { type: "donor_reply", text: fresh });
+        if (run) {
+          trace.metaCalls = run.metaCalls - waiting.metaCalls;
+          trace.agentRun = { code: run.code, status: run.status, started: false };
+          step("agent", `answer passed to run ${run.code}; now ${run.status.replaceAll("_", " ")}`);
+          conv.activeRun = run.status === "needs_input" ? { code: run.code, at: at.toISOString() } : null;
+          conv.history = []; conv.openQuestion = false; conv.pin = null;
+          await touchRun(store!, run.code, run.status, at.toISOString(), step);
+          return finish(runReply(run, agent.baseUrl, looksEnglish(fresh)));
+        }
+      }
+      conv.activeRun = null;
+    } catch (e) {
+      step("agent", `could not continue run ${activeCode} (${e instanceof Error ? e.message : "error"}); handling as a new message`);
+      conv.activeRun = null;
+    }
+  }
+
+  // An answer to our last question completes the offer instead of starting over, unless the new message is
+  // a whole offer on its own (product and quantity): then it is a new offer, not an answer.
+  const standalone = conv?.openQuestion && fresh ? ctx.deps.extractLocally(fresh).events.some(e => e.kind === "supply_announced" && e.quantity != null && Boolean(e.category)) : false;
+  if (standalone) step("memory", "new complete offer: earlier unanswered question dropped");
+  const earlier = conv?.openQuestion && !standalone ? conv.history.map(t => t.text) : [];
   const text = [...earlier, fresh].filter(Boolean).join("\n");
   // One team-inbox row per offer: follow-up answers update the row the first message opened.
   const opened = earlier.length && conv?.history[0] ? conv.history[0].at : at.toISOString();
@@ -236,17 +280,39 @@ export async function handleInbound(msg: InboundMessage, ctx: HandlerContext): P
     if (r.condition) step("safety", `${r.condition.reason} Routing condition: ${r.condition.effective}.`);
     if (r.icc) { const w = r.icc.physical.weightKg; step("icc", `weight ${w ? `${fmtRange(w.value)} kg · ${w.provenance}` : "unknown"} · condition ${r.icc.quality.condition.value} · ${r.icc.quality.condition.provenance} · missing ${r.icc.missing.map(m => m.field).join(", ") || "nothing"}`); }
     if (r.supply) step("matching", `${feasible} feasible, ${r.candidates.length - feasible} blocked (deterministic gates; nothing booked).`);
+    const en = looksEnglish(text);
     let reply = composeReply(text, r, registered);
-    if (r.supply && !registered && store && !earlier.length) reply += looksEnglish(text) ? "\nTip: write \"register\" once so you don't have to repeat your address." : "\nTip: escribe \"registrar\" una vez y ya no tendrás que repetir tu dirección.";
+    const open = asksSomething(reply) && Boolean(r.supply || r.demand);
+    const inboxId = `in-${key}-${opened}`.replace(/[^a-zA-Z0-9-]/g, "-");
+    // A complete offer opens an agent run: it proposes a destination for the team to sign off, and the donor
+    // gets a tracking link right away. Any question the agent still has goes to the donor from here.
+    let run: import("../agent/types.ts").AgentRun | null = null;
+    // It also takes over once the donor has answered one question: from then on the agent asks (with its own
+    // limit and hand-off to a person), so a conversation can't loop on the same question.
+    if (agent && r.supply && (!open || earlier.length > 0)) {
+      try {
+        run = await agent.start(text, image);
+        trace.metaCalls += run.metaCalls;
+        trace.agentRun = { code: run.code, status: run.status, started: true };
+        step("agent", `run ${run.code} opened (${run.planner}); ${run.status.replaceAll("_", " ")}${run.proposal ? ` · proposes ${run.proposal.recipient}` : ""}`);
+        await store!.linkRun({ code: run.code, phone, source: ctx.source, conversationKey: key, inboxId, lastInboundAt: at.toISOString() });
+        reply = [reply.split("\n")[0], runReply(run, agent.baseUrl, en)].join("\n");
+      } catch (e) {
+        run = null;
+        step("agent", `could not open an agent run (${e instanceof Error ? e.message : "error"}); the team can still open it from /team`);
+      }
+    }
+    if (r.supply && !registered && store && !earlier.length) reply += en ? "\nTip: write \"register\" once so you don't have to repeat your address." : "\nTip: escribe \"registrar\" una vez y ya no tendrás que repetir tu dirección.";
     if (conv) {
-      const open = asksSomething(reply) && Boolean(r.supply || r.demand);
-      conv.history = open ? [...(conv.openQuestion ? conv.history : []), { text: fresh, at: at.toISOString() }].slice(-MAX_TURNS) : [];
-      conv.openQuestion = open;
-      if (!open) conv.pin = null;
+      const waiting = open && !run;
+      conv.history = waiting ? [...(earlier.length ? conv.history : []), { text: fresh, at: at.toISOString() }].slice(-MAX_TURNS) : [];
+      conv.openQuestion = waiting;
+      conv.activeRun = run?.status === "needs_input" ? { code: run.code, at: at.toISOString() } : null;
+      if (!waiting) conv.pin = null;
     }
     if (store && (r.supply || r.demand)) {
       try {
-        await store.addInbox({ id: `in-${key}-${opened}`.replace(/[^a-zA-Z0-9-]/g, "-"), at: at.toISOString(), phone, source: ctx.source, kind: r.supply ? "offer" : "need", summary: reply.split("\n")[0].replace(/^¡Gracias! (Registré|Lo anoté): ?/, "").replace(/^Thanks! I noted:? ?/, ""), text, registrationId: registered?.id ?? null, feasible });
+        await store.addInbox({ id: inboxId, at: at.toISOString(), phone, source: ctx.source, kind: r.supply ? "offer" : "need", summary: reply.split("\n")[0].replace(/^¡Gracias! (Registré|Lo anoté): ?/, "").replace(/^Thanks! I noted:? ?/, ""), text, registrationId: registered?.id ?? null, feasible, runCode: run?.code ?? null, runStatus: run?.status ?? null });
       } catch (e) { step("inbox", `Could not save to the team inbox (${e instanceof Error ? e.message : "error"}).`); }
     }
     return finish(reply);

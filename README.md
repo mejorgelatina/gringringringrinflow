@@ -104,6 +104,8 @@ The landing and the v0.10 screens use separate root layouts (`app/(site)`, `app/
 
 Donors can message a WhatsApp Cloud API test number; `/api/whatsapp/webhook` verifies Meta's signature, runs the same intake pipeline, and replies with one question in the donor's language. `/whatsapp` is a simulator that uses the exact same handler and shows a step-by-step trace, so the flow can be checked without messaging anyone. Replies are only sent with `WHATSAPP_REPLIES_ENABLED=true`. To run it with your own test number, follow [`docs/WHATSAPP_SETUP.md`](docs/WHATSAPP_SETUP.md).
 
+The loop is closed: a complete WhatsApp offer opens an intake-agent run by itself, the donor gets a tracking link in the reply and answers the agent's questions in the same chat, the team signs off in `/team` → `/agent`, and approval notifies the donor and the destination (session text inside 24 h, Meta-approved templates outside it; previewed until `WHATSAPP_TEMPLATES_APPROVED=true`). See [`docs/WHATSAPP_TEMPLATES.md`](docs/WHATSAPP_TEMPLATES.md).
+
 ### judge walkthrough: whatsapp
 
 The live demo uses Meta's free WhatsApp Cloud API test number, not a judge's personal number as the business number. In Meta's developer dashboard, open the app's **WhatsApp → API setup**, copy the test number's **phone number id**, add one judge or teammate as a verified recipient, and subscribe the app to the `messages` webhook field. In the production deployment, set the server-only WhatsApp variables from [`docs/WHATSAPP_SETUP.md`](docs/WHATSAPP_SETUP.md), then use this callback URL:

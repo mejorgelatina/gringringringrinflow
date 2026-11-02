@@ -4,6 +4,7 @@ import { intakeDeps } from "@/lib/intake/deps";
 import { isAcceptableImageDataUrl } from "@/lib/meta/photo-policy";
 import { handleInbound, recordTrace } from "@/lib/whatsapp/handler";
 import { registryStore } from "@/lib/registry/store";
+import { liveAgentBridge } from "@/lib/whatsapp/agent-live";
 
 const Body = z.object({
   text: z.string().trim().max(5000).default(""),
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   if (text.length > 8000) return NextResponse.json({ ok: false, message: "this conversation is too long. start over with a new message." }, { status: 400 });
   const trace = await handleInbound(
     { id: `web-${crypto.randomUUID()}`, from: "web", timestamp: String(Math.floor(Date.now() / 1000)), type: image ? "image" : "text", text, mediaId: image ? "web" : null },
-    { deps: intakeDeps(), allowlist: undefined, send: null, fetchMedia: image ? async () => image : null, source: "web", ...(session ? { store: registryStore(), conversationKey: `web:${session}` } : {}) }
+    { deps: intakeDeps(), allowlist: undefined, send: null, fetchMedia: image ? async () => image : null, source: "web", ...(session ? { store: registryStore(), conversationKey: `web:${session}`, agent: liveAgentBridge(new URL(request.url).origin) } : {}) }
   );
   recordTrace(trace);
   return NextResponse.json({ ok: true, reply: trace.reply, kind: trace.onboarding ? "registration" : trace.intake?.supply ? "offer" : trace.intake?.demand ? "receive" : "none" });

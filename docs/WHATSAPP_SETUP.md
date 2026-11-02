@@ -32,6 +32,9 @@ A failed model or media call is not retried. The webhook always answers 200 afte
    | `WHATSAPP_ALLOWED_SENDERS` | your phone in international format, comma-separated (recommended) |
    | `WHATSAPP_REPLIES_ENABLED` | `true` only when you want real replies |
    | `WHATSAPP_GRAPH_VERSION` | optional, defaults to `v22.0` |
+   | `WHATSAPP_TEMPLATES_APPROVED` | `true` only after Meta approved the templates in [`WHATSAPP_TEMPLATES.md`](WHATSAPP_TEMPLATES.md) |
+   | `GRINFLOW_BASE_URL` | optional public URL for tracking links (defaults to Vercel's production domain) |
+   | `GRINFLOW_AUTO_AGENT` | optional, `off` stops offers from opening agent runs on their own |
 
    Model calls still follow `MODEL_API_KEY` + `META_CALLS_ENABLED=true`. Without them the channel works end to end with the labelled local fallback.
 5. Redeploy, then in **WhatsApp → Configuration → Webhook** set the callback URL to `https://<your-production-domain>/api/whatsapp/webhook` and the verify token from step 4. Subscribe to the **messages** field. Use the production domain: preview deployments are usually behind Vercel authentication, which blocks Meta.

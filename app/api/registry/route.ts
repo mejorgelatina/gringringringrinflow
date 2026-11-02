@@ -6,6 +6,8 @@ import type { InboxItem, Registration } from "@/lib/registry/types";
 import { checkTeam } from "@/lib/auth/team";
 import { firebaseWebConfig } from "@/lib/firebase/config";
 import { firebaseEnabled, firebaseInitError } from "@/lib/firebase/admin";
+import { deliverNotices, planVerifiedNotice, publicNotice } from "@/lib/whatsapp/notify";
+import { liveOutbound } from "@/lib/whatsapp/context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +35,7 @@ async function get(request: Request) {
   const team = await checkTeam(request);
   const ok = team.ok;
   const store = registryStore();
-  const [registrations, inbox] = await Promise.all([store.listRegistrations(), store.listInbox(100)]);
+  const [registrations, inbox, notices] = await Promise.all([store.listRegistrations(), store.listInbox(100), store.listNotices(50).catch(() => [])]);
   return NextResponse.json({
     ok: true,
     authorized: ok,
@@ -46,6 +48,8 @@ async function get(request: Request) {
     storeError: store.lastError ?? firebaseInitError() ?? (firebaseEnabled() || !process.env.FIREBASE_PRIVATE_KEY ? null : "firebase variables incomplete: need FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY"),
     registrations: registrations.filter(visible(ok)),
     inbox: inbox.filter(visible(ok)) as InboxItem[],
+    notices: notices.filter(visible(ok)).map(publicNotice),
+    templatesApproved: process.env.WHATSAPP_TEMPLATES_APPROVED === "true",
   }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -78,5 +82,8 @@ async function post(request: Request) {
   }
   await store.saveRegistration(next);
   const participants = await refreshLiveNetwork(store);
-  return NextResponse.json({ ok: true, registration: next, networkParticipants: participants.length });
+  // First verification only: tell the organization it is in the network (template; preview until approved).
+  const draft = b.action === "verify" && reg.status !== "verified" ? planVerifiedNotice(next, new Date()) : null;
+  const notices = draft ? await deliverNotices([draft], liveOutbound(), { store, optIn: () => next.whatsappOptIn }).catch(() => []) : [];
+  return NextResponse.json({ ok: true, registration: next, networkParticipants: participants.length, notices: notices.map(publicNotice) });
 }

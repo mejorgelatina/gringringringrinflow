@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import type { InboxItem, Registration } from "@/lib/registry/types";
+import type { InboxItem, Notice, Registration } from "@/lib/registry/types";
+import { save as saveCollection } from "../agent/tracking-card";
 import { CATEGORY_ES, hoursLabel } from "@/lib/registry/parse";
 import { PLACES } from "@/lib/network/supply";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -15,8 +16,11 @@ const ROLE: Record<string, string> = { donor: "dona", receiver: "recibe para per
 const STATUS: Record<string, string> = { pending: "pendiente", verified: "verificado", rejected: "rechazado" };
 const KIND: Record<string, string> = { offer: "oferta", need: "necesidad", registration: "registro", message: "mensaje" };
 const KEY = "grinflow-operator-key";
+const RUN: Record<string, string> = { needs_input: "esperando al donante", awaiting_approval: "por aprobar", escalated: "requiere revisión", approved: "aprobada", paused: "pausada", running: "en curso" };
+const NOTICE: Record<string, string> = { sent: "enviado", preview: "vista previa", failed: "falló", skipped: "no enviado" };
+const AUDIENCE: Record<string, string> = { donor: "donante", receiver: "destino", organization: "organización" };
 
-type Data = { authorized: boolean; operatorKeySet: boolean; firebaseAuth: boolean; teamEmailsSet: boolean; signedInAs: string | null; denied: string | null; store: string; storeError?: string | null; registrations: Registration[]; inbox: InboxItem[] };
+type Data = { authorized: boolean; operatorKeySet: boolean; firebaseAuth: boolean; teamEmailsSet: boolean; signedInAs: string | null; denied: string | null; store: string; storeError?: string | null; registrations: Registration[]; inbox: InboxItem[]; notices?: Notice[]; templatesApproved?: boolean };
 
 const DENIED: Record<string, string> = {
   "email-not-verified": "tu correo todavía no está verificado. abre el enlace que te mandamos y luego toca \"ya verifiqué\".",
@@ -70,6 +74,18 @@ export default function TeamPage() {
     finally { setBusy(null); }
   }
 
+  // A run a chat opened lives on the server: fetch its latest sealed state, hand it to the console, open it.
+  async function openRun(code: string) {
+    setBusy(code); setError("");
+    try {
+      const r = await fetch(`/api/agent/open?code=${encodeURIComponent(code)}`, { cache: "no-store", headers: await headers() });
+      const d = await r.json().catch(() => ({ ok: false, message: `el servidor respondió ${r.status} sin datos` }));
+      if (!r.ok || !d.ok) throw new Error(d.message || "no se pudo abrir");
+      saveCollection({ code: d.code, token: d.token, at: new Date().toISOString(), headline: d.headline });
+      window.location.href = `/agent?code=${d.code}`;
+    } catch (e) { setError(e instanceof Error ? e.message : "error"); setBusy(null); }
+  }
+
   const who = user?.email ?? (name.trim() || "equipo grinflow");
   const regs = data?.registrations ?? [];
   const pending = regs.filter(r => r.status === "pending");
@@ -106,8 +122,18 @@ export default function TeamPage() {
       <div className="section-head"><div><div className="eyebrow">entrando ahora</div><h2>ofertas, necesidades y registros.</h2></div></div>
       {(data?.inbox.length ?? 0) === 0 ? <p className={s.empty}>todavía no llega nada.</p> :
         <div className={s.wrap}><table className={s.inbox}><thead><tr><th>hora</th><th>tipo</th><th>de</th><th>qué entendimos</th><th>destinos viables</th></tr></thead>
-          <tbody>{data!.inbox.map(i => <tr key={i.id}><td>{new Date(i.at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</td><td>{KIND[i.kind]}</td><td className="keep-case">{regs.find(r => r.id === i.registrationId)?.name ?? (i.source === "simulator" ? "simulador" : i.phone ? `••••${i.phone.slice(-4)}` : "web")}</td><td className="keep-case">{i.summary}</td><td>{i.kind === "offer" ? <>{i.feasible}<a className={s.propose} href={`/agent?message=${encodeURIComponent(i.text)}`}>proponer destino ↗</a></> : "—"}</td></tr>)}</tbody></table></div>}
-      <p className={s.note} style={{ marginTop: 12 }}>el botón «proponer destino» abre el agente con la oferta ya cargada. el agente consulta la red y tú firmas; no se llama a meta desde este paso.</p>
+          <tbody>{data!.inbox.map(i => <tr key={i.id}><td>{new Date(i.at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</td><td>{KIND[i.kind]}</td><td className="keep-case">{regs.find(r => r.id === i.registrationId)?.name ?? (i.source === "simulator" ? "simulador" : i.phone ? `••••${i.phone.slice(-4)}` : "web")}</td><td className="keep-case">{i.summary}</td><td>{i.kind !== "offer" ? "—" : i.runCode
+            ? <>{i.feasible} · <span className="keep-case">{i.runCode}</span> {RUN[i.runStatus ?? ""] ?? i.runStatus}<button className={`${s.propose} secondary`} disabled={busy === i.runCode} onClick={() => openRun(i.runCode!)}>{i.runStatus === "awaiting_approval" ? "revisar y firmar ↗" : "abrir corrida ↗"}</button></>
+            : <>{i.feasible}<a className={s.propose} href={`/agent?message=${encodeURIComponent(i.text)}`}>proponer destino ↗</a></>}</td></tr>)}</tbody></table></div>}
+      <p className={s.note} style={{ marginTop: 12 }}>una oferta completa abre sola una corrida del agente: el agente consulta la red, propone destino y le pregunta al donante lo que falte por el mismo chat. tú revisas y firmas. «proponer destino» aparece cuando la oferta todavía no está completa.</p>
+    </section>
+
+    <section className="section-block">
+      <div className="section-head"><div><div className="eyebrow">avisos por whatsapp · {data?.notices?.length ?? 0}</div><h2>lo que grinflow le dijo a cada quien.</h2></div></div>
+      {(data?.notices?.length ?? 0) === 0 ? <p className={s.empty}>todavía no hay avisos. salen al aprobar una corrida (donante y destino) y al verificar una organización.</p> :
+        <div className={s.wrap}><table className={s.inbox}><thead><tr><th>hora</th><th>para</th><th>tipo</th><th>mensaje</th><th>estado</th></tr></thead>
+          <tbody>{data!.notices!.map(n => <tr key={n.id}><td>{new Date(n.at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</td><td>{AUDIENCE[n.audience]} {n.source === "simulator" ? "(simulador)" : n.to}</td><td className="keep-case">{n.mode === "session" ? "texto (ventana 24 h)" : `plantilla ${n.template?.name}`}</td><td className="keep-case">{n.body}</td><td title={n.detail}>{NOTICE[n.status]}<br/><small>{n.detail}</small></td></tr>)}</tbody></table></div>}
+      <p className={s.note} style={{ marginTop: 12 }}>dentro de 24 h desde el último mensaje del donante se responde con texto libre. fuera de esa ventana, o al escribirle primero a una organización, whatsapp solo deja enviar plantillas aprobadas por meta{data?.templatesApproved ? "" : " (todavía no aprobadas: quedan como vista previa)"}.</p>
     </section>
 
     {others.length > 0 && <section className="section-block">
