@@ -31,6 +31,14 @@ function firebaseConfig() {
   return { projectId, clientEmail, privateKey };
 }
 
+/** Shape of the private key (never its content), to debug how it was pasted into the environment. */
+export function privateKeyShape(raw: string | undefined): string {
+  if (!raw) return "empty";
+  const k = normalizePrivateKey(raw) ?? "";
+  const lines = k.split("\n").filter(Boolean).length;
+  return `raw length ${raw.length}, starts with ${raw.trim().startsWith("{") ? "{" : raw.trim().slice(0, 1) === '"' ? "quote" : "other"}, has BEGIN ${k.includes("BEGIN PRIVATE KEY")}, has END ${k.includes("END PRIVATE KEY")}, lines ${lines}`;
+}
+
 /** Why the service account could not be used (bad key format, etc.), or null. Never includes the key. */
 export function firebaseInitError(): string | null {
   firebaseApp();
@@ -59,7 +67,7 @@ export function firebaseApp(): App | null {
   try {
     cachedApp = getApps().find((a) => a.name === "[DEFAULT]") ?? initializeApp({ credential: cert(config) });
   } catch (error) {
-    initError = `firebase service account rejected: ${error instanceof Error ? error.message.slice(0, 200) : "unknown error"}`;
+    initError = `firebase service account rejected: ${error instanceof Error ? error.message.slice(0, 200) : "unknown error"} (key: ${privateKeyShape(process.env.FIREBASE_PRIVATE_KEY)}; a good key has BEGIN true, END true, about 28 lines)`;
     console.error(initError);
     cachedApp = null;
   }
