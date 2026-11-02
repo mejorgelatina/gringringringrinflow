@@ -44,7 +44,7 @@ Detalles por escena:
 
 ## 2. qué decir (1–2 frases por escena)
 
-- hook: "un tercio de la comida se desperdicia mientras comedores y makers la necesitan.
+- hook: "cerca de un tercio de la comida se desperdicia (cifra de la fao, cítala en pantalla) mientras comedores y makers la necesitan.
   grinflow rescata la comida apta para personas y transforma los orgánicos en materiales."
 - registro: "una organización se registra sola por whatsapp en dos minutos, pero nada
   entra a la red hasta que una persona del equipo la verifica."
@@ -78,7 +78,7 @@ Detalles por escena:
   `GRINFLOW_TEAM_EMAILS`; probar login y que se ve **por verificar**.
 - [ ] ventana Meta 3 nov: activar, grabar solo las tomas que la necesitan (foto vision
   y planner del agente), desactivar al terminar. costos: texto 1 llamada, foto +1,
-  run del agente 5–9. ojo: en `main` solo `/send` tiene tope por ip; ventana corta.
+  run del agente 5–9. ojo: `/send`, `/intake`, `/agent` y `/whatsapp` simulate tienen tope de 20 mensajes por 10 min por ip (por instancia); ventana corta.
 - [ ] `/whatsapp` → **live setup** todo en verde antes de grabar.
 - [ ] teléfono cargado, respuestas del registro a la mano, foto de pan lista; segunda
   foto (daño visible) opcional para el bloque de seguridad.
