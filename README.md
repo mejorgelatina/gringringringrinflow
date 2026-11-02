@@ -24,6 +24,8 @@ Everything below was built during the event. The git history shows it: every com
 
 The v0.10.x engines and documents were written by the team in a separate workspace during the event and imported in PRs #2 and #3. Some planning notes in `docs/v0.10/` are dated Oct 24–25: they are pre-event preparation (ideas and plans, no code).
 
+**Repository history (read this first):** this repository was created on 2026-11-02 and carries the complete, unedited git history of the original working repo `mejorgelatina/gringringrinflow`. The original repo had been created on 2026-07-27 to host the v0 marketing landing page, months before the event, so we moved the project to a repository created during the event, as the rules ask. No commit was removed, reordered or re-dated. All hackathon work starts with PR #2 on 2026-10-28; the only earlier commits are the four July v0 landing commits listed below.
+
 **Not built during the hackathon:** the original marketing landing page at `/` (generated with v0 on 2026-07-27/28, commits `63bd063`…`86ad7b6`). Its hero, header and styling were rewritten during the event in PR #7; the remaining sections are the July base with copy edits.
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
