@@ -59,10 +59,10 @@ async function post(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, message: "invalid request" }, { status: 400 });
   const team = await checkTeam(request);
-  const ok = team.ok;
+  if (!team.ok) return NextResponse.json({ ok: false, message: "team sign-in or operator key required" }, { status: 401 });
   const store = registryStore();
   const reg = await store.getRegistration(parsed.data.id);
-  if (!reg || !visible(ok)(reg)) return NextResponse.json({ ok: false, message: ok ? "registration not found" : "operator key required" }, { status: ok ? 404 : 401 });
+  if (!reg) return NextResponse.json({ ok: false, message: "registration not found" }, { status: 404 });
   const now = new Date().toISOString();
   const b = parsed.data;
   // A signed-in team member signs with their verified email; the typed name only counts for operator-key use.
