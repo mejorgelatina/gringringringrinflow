@@ -38,3 +38,19 @@ export async function sendText(to: string, body: string, cfg: GraphConfig): Prom
   const data = await res.json() as { messages?: { id?: string }[] };
   return data.messages?.[0]?.id ?? null;
 }
+
+/** A pre-approved template message: the only kind WhatsApp delivers outside the 24 h service window. */
+export async function sendTemplate(to: string, name: string, language: string, params: string[], cfg: GraphConfig): Promise<string | null> {
+  const res = await fetch(`${GRAPH}/${cfg.version}/${cfg.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${cfg.token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messaging_product: "whatsapp", to, type: "template",
+      template: { name, language: { code: language }, components: params.length ? [{ type: "body", parameters: params.map((text) => ({ type: "text", text: text.slice(0, 1000) })) }] : [] },
+    }),
+    signal: AbortSignal.timeout(10_000)
+  });
+  if (!res.ok) throw new Error(`template_${res.status}`);
+  const data = await res.json() as { messages?: { id?: string }[] };
+  return data.messages?.[0]?.id ?? null;
+}

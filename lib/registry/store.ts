@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { firestore } from "../firebase/admin.ts"
-import type { Conversation, InboxItem, Registration } from "./types.ts"
+import type { Conversation, InboxItem, Notice, Registration, RunLink } from "./types.ts"
 
 // Where registrations, conversation memory and the team inbox live. Firestore when FIREBASE_* is set
 // (durable, shared across server instances); otherwise process memory, which is enough for a demo on one
@@ -18,6 +18,11 @@ export interface RegistryStore {
   listRegistrations(): Promise<Registration[]>
   addInbox(item: InboxItem): Promise<void>
   listInbox(limit?: number): Promise<InboxItem[]>
+  getInbox(id: string): Promise<InboxItem | null>
+  linkRun(link: RunLink): Promise<void>
+  getRunLink(code: string): Promise<RunLink | null>
+  addNotice(n: Notice): Promise<void>
+  listNotices(limit?: number): Promise<Notice[]>
 }
 
 export const digits = (v: string) => v.replace(/\D/g, "")
@@ -26,6 +31,8 @@ export function createMemoryStore(): RegistryStore {
   const conversations = new Map<string, Conversation>()
   const registrations = new Map<string, Registration>()
   const inbox: InboxItem[] = []
+  const links = new Map<string, RunLink>()
+  const notices: Notice[] = []
   const copy = <T,>(v: T): T => structuredClone(v)
   return {
     kind: "memory",
@@ -41,6 +48,11 @@ export function createMemoryStore(): RegistryStore {
     async listRegistrations() { return [...registrations.values()].map(copy).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) },
     async addInbox(item) { const i = inbox.findIndex((x) => x.id === item.id); if (i >= 0) inbox.splice(i, 1); inbox.unshift(copy(item)); inbox.length = Math.min(inbox.length, 200) },
     async listInbox(limit = 50) { return inbox.slice(0, limit).map(copy) },
+    async getInbox(id) { const i = inbox.find((x) => x.id === id); return i ? copy(i) : null },
+    async linkRun(l) { links.set(l.code.toUpperCase(), copy(l)) },
+    async getRunLink(code) { const l = links.get(code.toUpperCase()); return l ? copy(l) : null },
+    async addNotice(n) { const i = notices.findIndex((x) => x.id === n.id); if (i >= 0) notices.splice(i, 1); notices.unshift(copy(n)); notices.length = Math.min(notices.length, 200) },
+    async listNotices(limit = 50) { return notices.slice(0, limit).map(copy) },
   }
 }
 
@@ -52,6 +64,8 @@ function createFirestoreStore(): RegistryStore | null {
   const conv = db.collection("gf_conversations")
   const regs = db.collection("gf_registrations")
   const box = db.collection("gf_inbox")
+  const runLinks = db.collection("gf_run_links")
+  const outbox = db.collection("gf_outbox")
   return {
     kind: "firestore",
     async getConversation(key) { const s = await conv.doc(hash(key)).get(); return s.exists ? (s.data() as Conversation) : null },
@@ -65,6 +79,11 @@ function createFirestoreStore(): RegistryStore | null {
     async listRegistrations() { const q = await regs.orderBy("createdAt", "desc").limit(500).get(); return q.docs.map((d) => d.data() as Registration) },
     async addInbox(item) { await box.doc(item.id).set(JSON.parse(JSON.stringify(item))) },
     async listInbox(limit = 50) { const q = await box.orderBy("at", "desc").limit(limit).get(); return q.docs.map((d) => d.data() as InboxItem) },
+    async getInbox(id) { const s = await box.doc(id).get(); return s.exists ? (s.data() as InboxItem) : null },
+    async linkRun(l) { await runLinks.doc(l.code.toUpperCase()).set(JSON.parse(JSON.stringify(l))) },
+    async getRunLink(code) { const s = await runLinks.doc(code.toUpperCase()).get(); return s.exists ? (s.data() as RunLink) : null },
+    async addNotice(n) { await outbox.doc(n.id).set(JSON.parse(JSON.stringify(n))) },
+    async listNotices(limit = 50) { const q = await outbox.orderBy("at", "desc").limit(limit).get(); return q.docs.map((d) => d.data() as Notice) },
   }
 }
 
@@ -100,6 +119,11 @@ export function withFallback(primary: RegistryStore, backup: RegistryStore = cre
     listRegistrations: () => run("read", () => primary.listRegistrations(), () => backup.listRegistrations()),
     addInbox: (i) => both("write", () => primary.addInbox(i), () => backup.addInbox(i)),
     listInbox: (n) => run("read", () => primary.listInbox(n), () => backup.listInbox(n)),
+    getInbox: (id) => run("read", () => primary.getInbox(id), () => backup.getInbox(id)),
+    linkRun: (l) => both("write", () => primary.linkRun(l), () => backup.linkRun(l)),
+    getRunLink: (c) => run("read", () => primary.getRunLink(c), () => backup.getRunLink(c)),
+    addNotice: (n) => both("write", () => primary.addNotice(n), () => backup.addNotice(n)),
+    listNotices: (n) => run("read", () => primary.listNotices(n), () => backup.listNotices(n)),
   }
 }
 

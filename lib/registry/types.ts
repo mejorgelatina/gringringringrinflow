@@ -83,6 +83,8 @@ export type Conversation = {
   onboarding: OnboardingState | null
   /** The last location pin the sender shared, if it was not part of onboarding. */
   pin: { point: Point; label: string; at: string } | null
+  /** The agent run this sender's last offer opened; their next answer goes to it while it waits for them. */
+  activeRun?: { code: string; at: string } | null
   updatedAt: string
 }
 
@@ -97,4 +99,42 @@ export type InboxItem = {
   text: string
   registrationId: string | null
   feasible: number
+  /** Tracking code of the agent run this offer opened automatically, if any. */
+  runCode?: string | null
+  /** Last known state of that run ("needs_input", "awaiting_approval", "approved"…). */
+  runStatus?: string | null
+}
+
+/** Who an agent run came from, kept server-side only (the sealed run travels to browsers; the phone must not). */
+export type RunLink = {
+  code: string
+  phone: string
+  source: Registration["source"]
+  conversationKey: string
+  inboxId: string
+  /** Last time the donor wrote: WhatsApp allows free-form replies only within 24 h of it. */
+  lastInboundAt: string
+}
+
+export type NoticeAudience = "donor" | "receiver" | "organization"
+export type NoticeStatus = "sent" | "preview" | "failed" | "skipped"
+
+/** One outbound WhatsApp message grinflow decided to send (or would send), kept for the team to see. */
+export type Notice = {
+  id: string
+  at: string
+  audience: NoticeAudience
+  /** Digits only. Personal data: /team masks it. */
+  to: string
+  source: Registration["source"]
+  /** Free-form text inside the 24 h service window, or an approved template outside it. */
+  mode: "session" | "template"
+  template: { name: string; language: string; params: string[] } | null
+  /** The exact text the person receives (a template rendered with its parameters). */
+  body: string
+  runCode: string | null
+  registrationId: string | null
+  status: NoticeStatus
+  /** Why it was or was not sent. */
+  detail: string
 }

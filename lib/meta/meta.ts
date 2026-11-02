@@ -96,6 +96,8 @@ export function extractLocally(message: string): Extraction {
     const suffix = hourMatch[2] || "";
     if (/pm|tarde|noche/.test(suffix) && deadlineHour < 12) deadlineHour += 12;
     if (/am|mañana/.test(suffix) && deadlineHour === 12) deadlineHour = 0;
+    // "antes de las 5" with no am/pm: a pickup at 1–7 is afternoon in practice, not before dawn.
+    if (!suffix && deadlineHour >= 1 && deadlineHour <= 7 && /^(antes|hasta|before|until|by)/.test(hourMatch[0])) deadlineHour += 12;
   }
   const needsInspection = /inspecci|inspect|revisar|check (them|it)/.test(lower);
   const statedCondition = /fresc[oa]s?|en buen estado|apto para consumo|\bfresh\b|good condition/.test(lower) ? "edible" : /echad[oa]s? a perder|podrid[oa]s?|descompuest[oa]s?|no apt[oa]|rotten|spoiled|mo(u)?ldy/.test(lower) ? "inedible" : /pasad[oa]s? de madur|muy madur|overripe/.test(lower) ? "past_prime" : "unknown";
