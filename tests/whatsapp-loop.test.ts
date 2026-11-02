@@ -161,3 +161,10 @@ test("verifying an organization drafts the welcome template", () => {
   assert.match(n!.body, /^comedor la esperanza ya está verificada/)
   assert.equal(planVerifiedNotice(verifiedReceiver({ status: "pending" }), new Date()), null)
 })
+
+test("local extraction: a bare pickup hour from 1 to 7 means afternoon", () => {
+  const hour = (t: string) => extractLocally(t).events[0]?.deadline_hour
+  assert.equal(hour("tenemos 10 cajas de pan en roma, recoger antes de las 5"), 17)
+  assert.equal(hour("tenemos 10 cajas de pan en roma, recoger antes de las 5 am"), 5)
+  assert.equal(hour("tenemos 10 cajas de pan en roma, recoger antes de las 11"), 11)
+})
