@@ -5,6 +5,7 @@ import { z } from "zod";
 import { isAcceptableImageDataUrl } from "@/lib/meta/photo-policy";
 import { intakeDeps } from "@/lib/intake/deps";
 import { processIntake } from "@/lib/intake/process";
+import { PUBLIC_MAX_PER_WINDOW, PUBLIC_WINDOW_MS, clientIp, createRateLimiter } from "@/lib/whatsapp/rate-limit";
 
 const Body = z.object({
   message: z.string().trim().min(1).max(5000),
@@ -14,8 +15,10 @@ const Body = z.object({
   photoFixture: z.enum(["clean", "mold", "containers"]).optional()
 });
 export const runtime = "nodejs";
+const overLimit = createRateLimiter(PUBLIC_WINDOW_MS, PUBLIC_MAX_PER_WINDOW);
 
 export async function POST(request: Request) {
+  if (overLimit(clientIp(request))) return NextResponse.json({ ok: false, error: "rate_limited", message: "too many requests. try again in a few minutes." }, { status: 429 });
   // Verified registrations join the network every channel evaluates against.
   await refreshLiveNetwork(registryStore());
   const requestId = crypto.randomUUID();
