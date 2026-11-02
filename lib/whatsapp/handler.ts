@@ -259,7 +259,12 @@ export async function handleInbound(msg: InboundMessage, ctx: HandlerContext): P
 const traces: Trace[] = [];
 /** In-memory, per server instance, newest first. Enough for a demo; not an audit log. */
 export function recordTrace(t: Trace) { traces.unshift(t); traces.length = Math.min(traces.length, 25); }
-/** Public view: webhook and web traces come from real people, so their reply text and offer details are withheld. */
+/** Public view: webhook and web traces come from real people, so their reply text, sender step and offer details are withheld. */
 export function recentTraces(): Trace[] {
-  return traces.map(t => t.source === "simulator" ? t : { ...t, reply: t.reply ? "(withheld: real sender)" : null, intake: t.intake ? { ...t.intake, supply: null, demand: null, photo: null, icc: null } : null });
+  return traces.map(t => t.source === "simulator" ? t : {
+    ...t,
+    reply: t.reply ? "(withheld: real sender)" : null,
+    steps: t.steps.map(s => (s.step === "sender" ? { ...s, detail: "(withheld: real sender)" } : s)),
+    intake: t.intake ? { ...t.intake, supply: null, demand: null, photo: null, icc: null } : null,
+  });
 }

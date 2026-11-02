@@ -3,6 +3,7 @@ import { z } from "zod";
 import { intakeDeps } from "@/lib/intake/deps";
 import { isAcceptableImageDataUrl } from "@/lib/meta/photo-policy";
 import { handleInbound, recordTrace } from "@/lib/whatsapp/handler";
+import { PUBLIC_MAX_PER_WINDOW, PUBLIC_WINDOW_MS, clientIp, createRateLimiter } from "@/lib/whatsapp/rate-limit";
 import { registryStore } from "@/lib/registry/store";
 
 const Body = z.object({
@@ -16,9 +17,11 @@ const Body = z.object({
 });
 const SIM_FROM = "5215500000000";
 export const runtime = "nodejs";
+const overLimit = createRateLimiter(PUBLIC_WINDOW_MS, PUBLIC_MAX_PER_WINDOW);
 
 /** Runs the exact webhook handler on a synthetic message. Never sends a WhatsApp reply. */
 export async function POST(request: Request) {
+  if (overLimit(clientIp(request))) return NextResponse.json({ ok: false, message: "too many messages. try again in a few minutes." }, { status: 429 });
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, message: "Send text, a photo, a location, or reset." }, { status: 400 });
   const { text, image, photoFixture, location, reset } = parsed.data;

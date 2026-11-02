@@ -8,6 +8,7 @@ import { remember } from "@/lib/agent/registry";
 import { trackingView } from "@/lib/agent/tracking";
 import { seal, stateSigned, unseal } from "@/lib/agent/state";
 import { approvalReply } from "@/lib/whatsapp/approval-reply";
+import { PUBLIC_MAX_PER_WINDOW, PUBLIC_WINDOW_MS, clientIp, createRateLimiter } from "@/lib/whatsapp/rate-limit";
 
 const Action = z.discriminatedUnion("type", [
   z.object({ type: z.literal("donor_reply"), text: z.string().trim().min(1).max(2000) }),
@@ -17,9 +18,11 @@ const Action = z.discriminatedUnion("type", [
 ]);
 const Body = z.object({ token: z.string().min(10).max(2_000_000), action: Action });
 export const runtime = "nodejs";
+const overLimit = createRateLimiter(PUBLIC_WINDOW_MS, PUBLIC_MAX_PER_WINDOW);
 
 /** A person moves a stopped run: the donor answers, an operator inspects, approves or rejects. */
 export async function POST(request: Request) {
+  if (overLimit(clientIp(request))) return NextResponse.json({ ok: false, error: "rate_limited", message: "too many requests. try again in a few minutes." }, { status: 429 });
   // Verified registrations join the network every channel evaluates against.
   await refreshLiveNetwork(registryStore());
   const parsed = Body.safeParse(await request.json().catch(() => null));
