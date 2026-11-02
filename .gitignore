@@ -27,3 +27,6 @@ yarn-error.log*
 next-env.d.ts
 !.env.example
 golden-eval-report.json
+
+# pnpm local store (created by `pnpm install` in some setups)
+.pnpm-store/
