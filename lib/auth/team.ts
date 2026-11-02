@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { firebaseAdminAuth } from "../firebase/admin.ts";
+import { verifyFirebaseIdToken } from "../firebase/verify.ts";
 
 // Who may see personal data and verify organizations. Two ways in:
 //  1. a Firebase Auth user (email/password) whose email is VERIFIED and listed in GRINFLOW_TEAM_EMAILS,
@@ -43,10 +43,9 @@ export function bearerToken(request: Request): string | null {
 export async function checkTeam(request: Request): Promise<TeamCheck> {
   const token = bearerToken(request);
   if (token) {
-    const auth = firebaseAdminAuth();
-    if (!auth) return { ok: false, reason: "auth-not-configured" };
     try {
-      const claims = await auth.verifyIdToken(token);
+      const claims = await verifyFirebaseIdToken(token);
+      if (!claims) return { ok: false, reason: "auth-not-configured" };
       return decideTeam(claims as Claims, teamEmails());
     } catch {
       return { ok: false, reason: "invalid-token" };

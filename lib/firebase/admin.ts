@@ -1,13 +1,9 @@
-import { cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app";
-import { getAuth, type Auth } from "firebase-admin/auth";
+import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { firebaseWebConfig } from "./config.ts";
 
 let cachedApp: App | null | undefined;
 let cachedDb: Firestore | null | undefined;
-let cachedAuth: Auth | null | undefined;
-
-const AUTH_ONLY_APP = "grinflow-auth-only";
 
 let initError: string | null = null;
 
@@ -85,18 +81,4 @@ export function firestore(): Firestore | null {
     cachedDb = null;
   }
   return cachedDb;
-}
-
-/**
- * Admin Auth, used only to verify ID tokens from the browser. Verifying a token needs just the project id
- * (Google's public keys are fetched over HTTPS), so sign-in works even before the service account is set.
- */
-export function firebaseAdminAuth(): Auth | null {
-  if (cachedAuth !== undefined) return cachedAuth;
-  const app = firebaseApp();
-  if (app) return (cachedAuth = getAuth(app));
-  const projectId = firebaseProjectId();
-  if (!projectId) return (cachedAuth = null);
-  const authApp = getApps().some((a) => a.name === AUTH_ONLY_APP) ? getApp(AUTH_ONLY_APP) : initializeApp({ projectId }, AUTH_ONLY_APP);
-  return (cachedAuth = getAuth(authApp));
 }
