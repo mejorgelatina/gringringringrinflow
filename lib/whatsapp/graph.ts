@@ -27,14 +27,24 @@ export async function downloadMediaAsDataUrl(mediaId: string, cfg: GraphConfig):
   return `data:${meta.mime_type};base64,${bytes.toString("base64")}`;
 }
 
+/** Mexican mobiles arrive as 521 + 10 digits; the Cloud API expects 52 + 10 digits. */
+export function normalizeRecipient(to: string): string {
+  const digits = to.replace(/\D/g, "");
+  return /^521\d{10}$/.test(digits) ? `52${digits.slice(3)}` : digits;
+}
+
 export async function sendText(to: string, body: string, cfg: GraphConfig): Promise<string | null> {
   const res = await fetch(`${GRAPH}/${cfg.version}/${cfg.phoneNumberId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${cfg.token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", to, type: "text", text: { body: body.slice(0, 4096) } }),
+    body: JSON.stringify({ messaging_product: "whatsapp", to: normalizeRecipient(to), type: "text", text: { body: body.slice(0, 4096) } }),
     signal: AbortSignal.timeout(10_000)
   });
-  if (!res.ok) throw new Error(`send_${res.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => null) as { error?: { code?: number; error_subcode?: number } } | null;
+    const code = err?.error?.code ? `_${err.error.code}${err.error.error_subcode ? `_${err.error.error_subcode}` : ""}` : "";
+    throw new Error(`send_${res.status}${code}`);
+  }
   const data = await res.json() as { messages?: { id?: string }[] };
   return data.messages?.[0]?.id ?? null;
 }
