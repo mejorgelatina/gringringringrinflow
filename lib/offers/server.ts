@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeOrg, type OrgIdentity } from "@/lib/auth/org";
 import { liveNetwork } from "@/lib/network/live";
 import type { Network } from "@/lib/network/types";
+import { advanceOffer, missionStore } from "@/lib/offers/missions";
 import { offersStore } from "@/lib/offers/store";
 import type { Offer } from "@/lib/offers/types";
 import { refreshLiveNetwork } from "@/lib/registry/network";
@@ -25,7 +26,10 @@ export async function loadOfferContext(request: Request, id: string, ownerOnly =
   }
   // Verified registrations join the network every mutation evaluates against.
   await refreshLiveNetwork(registryStore());
-  return { identity: auth.identity, reg, offer, network: liveNetwork() };
+  const network = liveNetwork();
+  // Missed pickups release their kilos back to the cascade before anything else runs.
+  const advanced = await advanceOffer(offersStore(), missionStore(), offer, network, Date.now());
+  return { identity: auth.identity, reg, offer: advanced, network };
 }
 
 export function isContext(v: OfferContext | NextResponse): v is OfferContext {
