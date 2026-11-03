@@ -51,7 +51,7 @@ Each epic is one pull request (or a short stack). Acceptance criteria are what a
 - Acceptance: new account shows empty states; after a completed mission the widgets change; no widget reads another organization's data.
 
 ### E3. publish an offer (P0)
-- From `/mi` a donor publishes an offer with a form (item, amount and unit, condition, window, location, notes) and photos. The existing intake pipeline and agent (`lib/intake/`, `lib/agent/`, `lib/photo` policy) analyze it; a person still signs.
+- From `/mi` a donor publishes an offer with a form (item, amount and unit, condition, window, location, notes) and photos. The existing intake pipeline and agent (`lib/intake/`, `lib/agent/`, photo policy in `lib/meta/photo-policy.ts`) analyze it; a person still signs.
 - Offers reach eligible receivers by the existing network engine (`lib/network/`: eligibility, zones, cascade, waves of three, partial holds that expire) and are shown by role: banks and kitchens first, makers for transformable organics, compost last.
 - Acceptance: tests that a donor offer creates a case; ineligible receivers are not notified; unknown condition never reaches people; works with Meta off (local fallback labeled) and with Meta on.
 
