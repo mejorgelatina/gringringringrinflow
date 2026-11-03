@@ -22,6 +22,10 @@ const COPY = {
     register: "register my organization",
     registerHint: "once: name, address, hours, contact",
     registerOpener: "i want to register my organization",
+    location: "share location",
+    locating: "locating…",
+    locationError: "could not get your location.",
+    locationSent: "location shared",
   },
   es: {
     give: "tengo comida para donar",
@@ -38,6 +42,10 @@ const COPY = {
     register: "registrar mi organización",
     registerHint: "una sola vez: nombre, dirección, horario, contacto",
     registerOpener: "quiero registrar mi organización",
+    location: "compartir ubicación",
+    locating: "localizando…",
+    locationError: "no pude obtener tu ubicación.",
+    locationSent: "ubicación compartida",
   },
 } as const
 
@@ -62,6 +70,7 @@ export function WebChat({ initialIntent, initialLang, whatsapp }: { initialInten
   const [text, setText] = useState("")
   const [image, setImage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [locating, setLocating] = useState(false)
   const [error, setError] = useState("")
   const bodyRef = useRef<HTMLDivElement>(null)
   const started = useRef(false)
@@ -73,6 +82,17 @@ export function WebChat({ initialIntent, initialLang, whatsapp }: { initialInten
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" })
   }, [chat, busy])
 
+  async function post(body: Record<string, unknown>): Promise<string> {
+    const r = await fetch("/api/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    const d = await r.json()
+    if (!r.ok || !d.ok) throw new Error(d.message || "something went wrong")
+    return d.reply ?? ""
+  }
+
   async function send(message: string, photo: string | null = image) {
     if (busy || (!message.trim() && !photo)) return
     setBusy(true)
@@ -82,18 +102,46 @@ export function WebChat({ initialIntent, initialLang, whatsapp }: { initialInten
     setText("")
     setImage(null)
     try {
-      const r = await fetch("/api/message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: message.trim(), history, session, ...(photo ? { image: photo } : {}) }),
-      })
-      const d = await r.json()
-      if (!r.ok || !d.ok) throw new Error(d.message || "something went wrong")
-      setChat((c) => [...c, { who: "grinflow", text: d.reply ?? "" }])
+      const reply = await post({ text: message.trim(), history, session, ...(photo ? { image: photo } : {}) })
+      setChat((c) => [...c, { who: "grinflow", text: reply }])
     } catch (e) {
       setError(e instanceof Error ? e.message : "something went wrong")
     } finally {
       setBusy(false)
+    }
+  }
+
+  function locate(): Promise<GeolocationPosition> {
+    return new Promise((resolve, reject) => {
+      if (!("geolocation" in navigator)) reject(new Error("unavailable"))
+      else navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 15000 })
+    })
+  }
+
+  async function shareLocation() {
+    if (busy || locating) return
+    setLocating(true)
+    setError("")
+    let pos: GeolocationPosition
+    try {
+      pos = await locate()
+    } catch {
+      setError(t.locationError)
+      setLocating(false)
+      return
+    }
+    const { latitude: lat, longitude: lng } = pos.coords
+    setBusy(true)
+    const history = chat.filter((b) => b.who === "you" && b.text).map((b) => b.text).slice(-10)
+    setChat((c) => [...c, { who: "you", text: `${t.locationSent} · ${lat.toFixed(4)}, ${lng.toFixed(4)}` }])
+    try {
+      const reply = await post({ text: "", history, session, location: { lat, lng, label: "" } })
+      setChat((c) => [...c, { who: "grinflow", text: reply }])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "something went wrong")
+    } finally {
+      setBusy(false)
+      setLocating(false)
     }
   }
 
@@ -197,6 +245,14 @@ export function WebChat({ initialIntent, initialLang, whatsapp }: { initialInten
             <label htmlFor="web-photo" className="cursor-pointer rounded-md border border-dashed border-input px-3 py-2 text-sm text-brand-700 hover:bg-secondary">
               {image ? t.changePhoto : t.photo}
             </label>
+            <button
+              type="button"
+              onClick={shareLocation}
+              disabled={busy || locating}
+              className="rounded-md border border-dashed border-input px-3 py-2 text-sm text-brand-700 hover:bg-secondary disabled:opacity-50"
+            >
+              {locating ? t.locating : t.location}
+            </button>
             <input
               id="web-photo"
               type="file"
