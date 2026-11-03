@@ -58,7 +58,7 @@ export default function MiPage() {
       <div className="hero">
         <p className="eyebrow">mi grinflow</p>
         <h1>hola, <em className="keep-case">{me.name}</em></h1>
-        <p className="lede">{rolesLine(me.roles)} · miembro desde {me.createdAt.slice(0, 10)}</p>
+        <p className="lede">{rolesLine(me.roles)} · miembro desde {me.createdAt.slice(0, 10)} · <a href="/mapa">ver mapa ↗</a></p>
         <div className="hero-tags"><span>{STATUS_LABEL[me.status]}</span>{badgesFor(me).map(b => <span key={b.id}>{b.label} · {b.detail}</span>)}</div>
       </div>
       {sectionsFor(me).map(sec => sec.key === "offers" && offers && offers.length > 0 ? <div key={sec.key} className="section-block">
