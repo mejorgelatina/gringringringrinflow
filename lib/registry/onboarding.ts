@@ -1,4 +1,5 @@
-import { CATEGORY_ES, hoursLabel, isCancel, isNo, isYes, parseAccepts, parseAddress, parseContact, parseGenerates, parseHours, parsePickup, parseRoles } from "./parse.ts"
+import { hoursLabel, isCancel, isNo, isYes, parseAccepts, parseAddress, parseContact, parseGenerates, parseHours, parsePickup, parseRoles } from "./parse.ts"
+import { acceptsCore } from "./display.ts"
 import type { Point } from "../network/types.ts"
 import type { OnboardingState, OnboardingStep, RegisteredRole, Registration } from "./types.ts"
 
@@ -39,7 +40,7 @@ export function summary(d: Partial<Registration>): string {
     `• ${hoursLabel(d.hours ?? null, d.hoursText)}`,
     `• contacto: ${(d.contacts ?? []).map((c) => `${c.name} ${c.phone}`).join(", ") || "—"}`,
   ]
-  if (d.accepts) lines.push(`• ${d.roles?.includes("maker") && d.accepts.materials.length ? `material: ${d.accepts.materials.join(", ")}` : `recibe: ${d.accepts.categories.map((c) => CATEGORY_ES[c] ?? c).join(", ") || d.accepts.text}`}${d.accepts.requires.length ? ` (${d.accepts.requires.join(", ")})` : ""}${d.accepts.weeklyKg ? `, ~${d.accepts.weeklyKg} kg/semana` : ""}`)
+  if (d.accepts) lines.push(`• ${(d.roles?.includes("maker") && d.accepts.materials.length ? "material: " : "recibe: ") + acceptsCore(d.accepts, { maker: d.roles?.includes("maker") ?? false })}${d.accepts.weeklyKg ? `, ~${d.accepts.weeklyKg} kg/semana` : ""}`)
   if (d.selfPickup !== undefined && d.selfPickup !== null) lines.push(`• ${d.selfPickup ? "recogen con su gente" : "mandan su propio envío"}`)
   if (d.generates) lines.push(`• les sobra: ${d.generates.text}`)
   return `Esto es lo que registré:\n${lines.join("\n")}`

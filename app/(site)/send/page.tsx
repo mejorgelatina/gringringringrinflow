@@ -11,10 +11,10 @@ export const dynamic = "force-dynamic"
 
 export default async function SendPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
-  const intent: Intent | null = params.intent === "give" || params.intent === "receive" ? params.intent : null
+  const intent: Intent | null = params.intent === "give" || params.intent === "receive" || params.intent === "register" ? params.intent : null
   const lang: Lang = params.lang === "en" ? "en" : "es"
   const number = whatsappNumber()
-  const whatsapp = number ? { give: whatsappLink(number, "give", lang), receive: whatsappLink(number, "receive", lang) } : null
+  const whatsapp = number ? { give: whatsappLink(number, "give", lang), receive: whatsappLink(number, "receive", lang), register: whatsappLink(number, "register", lang) } : null
 
   return (
     <main className="min-h-screen">

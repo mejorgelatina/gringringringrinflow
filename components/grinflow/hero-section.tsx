@@ -64,6 +64,16 @@ export function HeroSection() {
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{side.body}</p>
             </div>
           ))}
+          <a
+            href="/send?intent=register"
+            className="group rounded-lg border border-border bg-card p-5 shadow-[var(--gf-shadow-sm)] transition-colors hover:border-primary"
+          >
+            <p className="font-display text-lg">mi taller o laboratorio puede transformar desechos orgánicos</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              ej. cáscara de huevo: di qué desechos aceptas y grinflow te conecta con quien los genera.{" "}
+              <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">→</span>
+            </p>
+          </a>
           <div className="rounded-lg bg-accent p-5 text-accent-foreground">
             <p className="font-display text-lg">grinflow handles the rest</p>
             <p className="mt-1 text-sm leading-relaxed">
