@@ -120,3 +120,12 @@ test("public traces withhold reply text and offer details from real senders", as
   assert.equal(pub.reply, "(withheld: real sender)")
   assert.equal(pub.intake?.supply, null)
 })
+
+test("replies capitalize accented place names without breaking them", () => {
+  const base = { provider: "", model: null, extraction: { events: [], residual_text: "", needs_review: false, review_reasons: [] }, supply: null, demand: null, photo: null, condition: null, icc: null, candidates: [], metaCalls: 0 }
+  const s = composeReply("tenemos pan", { ...base, supply: { item: "pan", location: "ubicación compartida" } } as never)
+  assert.match(s, /en Ubicación Compartida/)
+  assert.doesNotMatch(s, /ÓN/)
+  const d = composeReply("recibimos verdura", { ...base, demand: { location: "colonia san ángel" } } as never)
+  assert.match(d, /en Colonia San Ángel/)
+})

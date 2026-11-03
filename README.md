@@ -77,7 +77,7 @@ This repo now carries the v0.10.2 package (English edition) (engines, console, d
 | `/backhaul` | Return-trip opportunities for a van that just delivered (synthetic). Hidden (404) unless `NEXT_PUBLIC_GRINFLOW_CARRIERS=on` |
 | `/platform` | v0.10 logistics console (browser-local synthetic data) |
 | `POST /api/demo/offer-flow` | The full loop in memory. Body optional: `answers`, `reviewRouteIndex`, `decision`, `offer`, `destinations`, `vehicles` |
-| `POST /api/demo/match-preview`, `POST /api/demo/backhaul-preview` | v0.10 stateless previews ([examples](docs/v0.10/DEMO_API_EXAMPLES_ES.md)) |
+| `POST /api/demo/match-preview`, `POST /api/demo/backhaul-preview` | v0.10 stateless previews ([examples](docs/v0.10/DEMO_API_EXAMPLES.md)) |
 | `POST /api/intake` | v0.10 extraction endpoint |
 
 The landing and the v0.10 screens use separate root layouts (`app/(site)`, `app/(ops)`) so their global styles never mix.
