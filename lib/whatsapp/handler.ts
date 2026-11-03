@@ -74,7 +74,8 @@ function demandReply(en: boolean, r: IntakeResult, registered: Registration | nu
   const ev = r.extraction.events.find(e => e.kind === "demand_declared");
   const item = ev?.item || (d.category ? (en ? d.category : CATEGORY_ES[d.category] ?? d.category) : null);
   const qty = d.quantity != null ? `${d.quantity} ${d.unit ?? ""}`.trim() : null;
-  const place = d.location ? d.location.replace(/\b\p{L}/gu, c => c.toUpperCase()) : null;
+  // \b is ASCII-only and would capitalize inside accented words; match letters with no letter before them.
+  const place = d.location ? d.location.replace(/(?<!\p{L})\p{L}/gu, c => c.toUpperCase()) : null;
   const parts = [qty, item, place ? (en ? `at ${place}` : `en ${place}`) : null, d.untilHour != null ? (en ? `until ${d.untilHour}:00` : `hasta las ${d.untilHour}:00`) : null].filter(Boolean);
   const lines = [parts.length
     ? (en ? `Thanks! I noted that your organization can receive: ${parts.join(", ")}.` : `¡Gracias! Registré que tu organización puede recibir: ${parts.join(", ")}.`)
@@ -95,7 +96,7 @@ export function composeReply(text: string, r: IntakeResult, registered: Registra
   const item = ev?.item || (s.category ? (en ? s.category : CATEGORY_ES[s.category] ?? s.category) : (en ? "food" : "alimento"));
   const unit = ev?.unit && s.quantity !== 1 ? (ev.unit === "box" ? "boxes" : ev.unit === "kg" || ev.unit.endsWith("s") ? ev.unit : `${ev.unit}s`) : ev?.unit ?? "";
   const qty = s.quantity != null ? `${s.quantityBasis === "estimated" ? (en ? "about " : "aprox. ") : ""}${s.quantity} ${unit}`.trim() : null;
-  const place = s.location ? s.location.replace(/\b\p{L}/gu, c => c.toUpperCase()) : null;
+  const place = s.location ? s.location.replace(/(?<!\p{L})\p{L}/gu, c => c.toUpperCase()) : null;
   // Weight as ICC knows it: a declared number, or an estimate that says it is one.
   const w = r.icc?.physical.weightKg;
   const weight = w && !(s.quantity != null && ev?.unit === "kg") ? (w.provenance === "estimado" ? (en ? `~${fmtRange(w.value)} kg estimated` : `~${fmtRange(w.value)} kg estimado`) : `${fmtRange(w.value)} kg`) : null;
