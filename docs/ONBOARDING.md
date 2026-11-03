@@ -12,7 +12,7 @@ Trigger: any message like "quiero registrar mi organización", "registro", "cóm
 | --- | --- | --- |
 | role | 1 dona · 2 recibe para personas · 3 transforma materiales (maker) · 4 composta (several allowed) | `roles` |
 | name | name of the place or organization | `name` |
-| location | WhatsApp location pin, or a written address | `location` (pin), or `address` + a pilot colonia point; otherwise the team places it |
+| location | WhatsApp location pin, web location share (`/send`), or a written address | `location` (pin), or `address` + a pilot colonia point; otherwise the team places it |
 | hours | days and hours they hand over or receive ("lunes a viernes de 9 a 6") | `hours` (days + minutes), `hoursText` as written |
 | contact | contact person, and their phone if it's another number | `contacts` |
 | accepts (receiver, maker, compost) | what they take, specs (limpio, seco, molido…), kg per week | `accepts` |
