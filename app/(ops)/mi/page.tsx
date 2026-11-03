@@ -3,12 +3,13 @@ import { useCallback, useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import { badgesFor, sectionsFor } from "@/lib/mi/home";
+import type { Offer } from "@/lib/offers/types";
 import { STATUS_LABEL, rolesLine } from "@/lib/registry/display";
 import type { Registration } from "@/lib/registry/types";
 import { TeamSignIn } from "../team/sign-in";
 
 // Organization home (E2): greeting, verification status, real-data badges and role sections.
-// Activity widgets stay empty until E3-E5 create offers, holds and missions.
+// Donor offers list their own published lots (E3); holds and missions stay empty until E4-E5.
 
 export default function MiPage() {
   const auth = firebaseClientAuth();
@@ -16,19 +17,26 @@ export default function MiPage() {
   const [authReady, setAuthReady] = useState(!auth);
   const [me, setMe] = useState<Registration | null>(null);
   const [none, setNone] = useState(false);
+  const [offers, setOffers] = useState<Offer[] | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => auth ? onAuthStateChanged(auth, u => { setUser(u); setAuthReady(true); }) : undefined, [auth]);
 
   const load = useCallback(async () => {
-    if (!user) { setMe(null); setNone(false); return; }
+    if (!user) { setMe(null); setNone(false); setOffers(null); return; }
     setError("");
     try {
-      const r = await fetch("/api/org/me", { cache: "no-store", headers: { Authorization: `Bearer ${await user.getIdToken()}` } });
+      const token = await user.getIdToken();
+      const r = await fetch("/api/org/me", { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
       const d = await r.json().catch(() => null);
-      if (r.status === 404 || d?.error === "no-registration") { setMe(null); setNone(true); return; }
+      if (r.status === 404 || d?.error === "no-registration") { setMe(null); setNone(true); setOffers(null); return; }
       if (!r.ok || !d?.ok) throw new Error("no se pudo cargar tu inicio.");
       setMe(d.registration); setNone(false);
+      if ((d.registration as Registration).roles.includes("donor")) {
+        const ro = await fetch("/api/offers", { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
+        const od = await ro.json().catch(() => null);
+        setOffers(ro.ok && od?.ok ? od.offers as Offer[] : []);
+      } else setOffers(null);
     } catch (e) { setError(e instanceof Error ? e.message : "error"); }
   }, [user]);
   useEffect(() => { if (authReady) load(); }, [load, authReady]);
@@ -52,8 +60,16 @@ export default function MiPage() {
         <p className="lede">{rolesLine(me.roles)} · miembro desde {me.createdAt.slice(0, 10)}</p>
         <div className="hero-tags"><span>{STATUS_LABEL[me.status]}</span>{badgesFor(me).map(b => <span key={b.id}>{b.label} · {b.detail}</span>)}</div>
       </div>
-      {sectionsFor(me).map(sec => <div key={sec.key} className="section-block">
-        <div className="section-head"><h2>{sec.title}</h2></div>
+      {sectionsFor(me).map(sec => sec.key === "offers" && offers && offers.length > 0 ? <div key={sec.key} className="section-block">
+        <div className="section-head"><h2>{sec.title}</h2><a className="step" href="/publicar">publicar otra ↗</a></div>
+        {offers.map(o => <p key={o.id}>
+          <span className="keep-case">{o.item || o.category || "lote"}</span>
+          {" · "}{o.status === "open" ? "abierta" : o.status === "needs_review" ? "en revisión" : "cerrada"}
+          {o.tier ? ` · tier ${o.tier}` : ""} · {o.eligible.length} destino(s)
+          {o.agentCode && <> · <a href={`/track?code=${o.agentCode}`}>{o.agentCode} ↗</a></>}
+        </p>)}
+      </div> : <div key={sec.key} className="section-block">
+        <div className="section-head"><h2>{sec.title}</h2>{sec.key === "offers" && <a className="step" href="/publicar">publicar oferta ↗</a>}</div>
         {sec.body ? <p className="keep-case">{sec.body}</p> : <p className="empty">{sec.empty}</p>}
       </div>)}
     </>}
