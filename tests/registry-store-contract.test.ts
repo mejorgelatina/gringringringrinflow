@@ -57,7 +57,7 @@ const AT = "2026-11-02T12:00:00.000Z"
 
 function makeRegistration(overrides: Partial<Registration> = {}): Registration {
   return {
-    id: "reg-1", phone: "5215511112222", source: "webhook", name: "Org",
+    id: "reg-1", phone: "5215511112222", ownerUid: null, source: "webhook", name: "Org",
     roles: ["receiver"], address: null, location: null, locationSource: null, area: null,
     hours: null, hoursText: "", contacts: [], accepts: null, generates: null,
     selfPickup: null, whatsappOptIn: true, status: "pending",
@@ -107,6 +107,17 @@ function battery(label: string, make: () => RegistryStore) {
     await store.saveRegistration(makeRegistration({ id: "rej", status: "rejected", updatedAt: "2026-11-04T12:00:00.000Z" }))
     assert.equal((await store.findRegistrationByPhone("+52 1 55 1111-2222"))?.id, "new")
     assert.equal(await store.findRegistrationByPhone("000"), null)
+  })
+
+  test(`${label}: findRegistrationByOwner returns the newest owned registration`, async () => {
+    const store = make()
+    await store.saveRegistration(makeRegistration({ id: "o1", ownerUid: "uid-a", updatedAt: "2026-11-01T12:00:00.000Z" }))
+    await store.saveRegistration(makeRegistration({ id: "o2", ownerUid: "uid-a", updatedAt: "2026-11-03T12:00:00.000Z" }))
+    await store.saveRegistration(makeRegistration({ id: "o3", ownerUid: "uid-b" }))
+    await store.saveRegistration(makeRegistration({ id: "o4", ownerUid: null }))
+    assert.equal((await store.findRegistrationByOwner("uid-a"))?.id, "o2")
+    assert.equal((await store.findRegistrationByOwner("uid-b"))?.id, "o3")
+    assert.equal(await store.findRegistrationByOwner("uid-none"), null)
   })
 
   test(`${label}: listRegistrations is newest-first by createdAt`, async () => {

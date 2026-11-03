@@ -34,6 +34,8 @@ export type Registration = {
   id: string
   /** The whatsapp number that registered it (digits only). */
   phone: string
+  /** Firebase uid that owns this registration (web accounts). Chat registrations start unclaimed (null). */
+  ownerUid: string | null
   source: "webhook" | "simulator" | "web"
   name: string
   roles: RegisteredRole[]
