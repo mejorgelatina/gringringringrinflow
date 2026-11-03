@@ -6,6 +6,7 @@ import { intakeDeps } from "@/lib/intake/deps";
 import { isAcceptableImageDataUrl } from "@/lib/meta/photo-policy";
 import { publishOffer } from "@/lib/offers/publish";
 import { offersStore } from "@/lib/offers/store";
+import { refreshLiveNetwork } from "@/lib/registry/network";
 import { registryStore } from "@/lib/registry/store";
 import { PUBLIC_MAX_PER_WINDOW, PUBLIC_WINDOW_MS, clientIp, createRateLimiter } from "@/lib/whatsapp/rate-limit";
 
@@ -43,6 +44,8 @@ export async function POST(request: Request) {
   const photos = parsed.data.photos ?? [];
   const bad = photos.findIndex((p) => !isAcceptableImageDataUrl(p));
   if (bad >= 0) return NextResponse.json({ ok: false, error: "invalid_photo", message: `la foto ${bad + 1} no es una imagen válida (jpeg/png/webp/gif, máx 3mb).` }, { status: 400 });
+  // Verified registrations join the network the offer is matched against.
+  await refreshLiveNetwork(registryStore());
   const { deps, planner } = agentWiring();
   const offer = await publishOffer(
     {

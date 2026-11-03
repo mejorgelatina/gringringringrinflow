@@ -1,6 +1,6 @@
 import type { Proposal } from "../agent/types.ts";
 import type { ConditionEvidence } from "../meta/photo-policy.ts";
-import type { Tier, Zone } from "../network/types.ts";
+import type { NetworkCase, Tier, Zone } from "../network/types.ts";
 
 // A published offer (E3): one donor lot that went through extraction, ICC and eligibility,
 // with the agent's proposal attached. Photos are analyzed, never stored: only the assessments
@@ -51,6 +51,10 @@ export type Offer = {
   eligible: OfferEligible[];
   /** First cascade tier with an eligible destination, or null when nothing is eligible yet. */
   tier: Tier | null;
+  /** Coordination of this lot (waves, holds, events). Null when nothing extractable was published. */
+  case: NetworkCase | null;
+  /** Participant ids notified so far, denormalized from the case waves for inbox queries. */
+  notifiedIds: string[];
   /** The agent's proposal. A person still signs off before anything is routed. */
   proposal: Proposal | null;
   agentStatus: string;

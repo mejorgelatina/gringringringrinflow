@@ -9,7 +9,8 @@ import type { Registration } from "@/lib/registry/types";
 import { TeamSignIn } from "../team/sign-in";
 
 // Organization home (E2): greeting, verification status, real-data badges and role sections.
-// Donor offers list their own published lots (E3); holds and missions stay empty until E4-E5.
+// Donor offers list their own published lots (E3) with a manage link (E4); receiver sections link
+// to the inbox (E4). Missions stay empty until E5.
 
 export default function MiPage() {
   const auth = firebaseClientAuth();
@@ -67,9 +68,11 @@ export default function MiPage() {
           {" · "}{o.status === "open" ? "abierta" : o.status === "needs_review" ? "en revisión" : "cerrada"}
           {o.tier ? ` · tier ${o.tier}` : ""} · {o.eligible.length} destino(s)
           {o.agentCode && <> · <a href={`/track?code=${o.agentCode}`}>{o.agentCode} ↗</a></>}
+          <> · <a href={`/ofertas/${o.id}`}>gestionar ↗</a></>
         </p>)}
       </div> : <div key={sec.key} className="section-block">
         <div className="section-head"><h2>{sec.title}</h2>{sec.key === "offers" && <a className="step" href="/publicar">publicar oferta ↗</a>}</div>
+        {["inbox", "material-offers", "incoming"].includes(sec.key) && <p><a href="/recibir">abrir bandeja /recibir ↗</a></p>}
         {sec.body ? <p className="keep-case">{sec.body}</p> : <p className="empty">{sec.empty}</p>}
       </div>)}
     </>}

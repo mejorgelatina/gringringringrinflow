@@ -27,10 +27,13 @@ function wiring(): PublishWiring {
   return { intake: deps, agent: deps, planner: createScriptedPlanner() }
 }
 
+/** Pinned clock: the demo Tuesday at noon, so weekday-dependent matching is deterministic. */
+const TUESDAY = Date.parse("2026-11-03T12:00:00-06:00")
+
 function input(over: Partial<PublishInput> = {}): PublishInput {
   return {
     message: BREAD, photos: [], donorUid: "uid-a", donorRegId: "reg-a",
-    donorName: "fonda roma", donorRegStatus: "verified", confirmEdible: true, ...over,
+    donorName: "fonda roma", donorRegStatus: "verified", confirmEdible: true, now: TUESDAY, ...over,
   }
 }
 
@@ -113,6 +116,7 @@ test("OF-08: the fallback store answers from memory when firestore fails, and sa
     saveOffer: async () => { throw new Error("boom") },
     getOffer: async () => { throw new Error("boom") },
     listOffersByOwner: async () => { throw new Error("boom") },
+    listOffersNotified: async () => { throw new Error("boom") },
   }
   const store = withOffersFallback(failing, backup)
   assert.equal((await store.getOffer("o1"))?.id, "o1")

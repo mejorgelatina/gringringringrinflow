@@ -12,9 +12,11 @@ import {
   type ObservedCondition,
   type PhotoRouting,
 } from "../meta/photo-policy.ts";
+import { notified, publish as openCase } from "../network/coordinator.ts";
 import { liveNetwork } from "../network/live.ts";
 import { allocateTier, matchResource } from "../network/match.ts";
 import { supplyToResource } from "../network/supply.ts";
+import type { Ms, NetworkCase } from "../network/types.ts";
 import type { Offer, OfferGap } from "./types.ts";
 
 // The publish pipeline (E3): one donor message plus up to three photos becomes a persisted offer.
@@ -35,11 +37,27 @@ export type PublishInput = {
   confirmEdible: boolean;
   /** Registered address of the donor, used only when the message names no place. */
   donorAddress?: string | null;
+  /** Clock for matching and waves (ms epoch). Defaults to now; tests pin it. */
+  now?: number;
 };
 
 export type PublishWiring = { intake: IntakeDeps; agent: AgentDeps; planner: Planner };
 
 const observedRank: Record<PhotoRouting["suggestedCondition"], number> = { unknown: 0, past_prime: 1, inedible: 2 };
+
+/**
+ * The engine pins pickup windows to its demo day; a real lot is picked up today. Move the window
+ * to the day of `now` keeping the clock times (pilot timezone, UTC-6, like the engine), so holds,
+ * waves and expiry work on any day the offer is published.
+ */
+function shiftWindowToDay(window: { start: Ms; end: Ms }, now: Ms): { start: Ms; end: Ms } {
+  const day = new Date(now - 6 * 3600_000).toISOString().slice(0, 10);
+  const clock = (at: Ms) => new Date(at - 6 * 3600_000).toISOString().slice(11, 16);
+  return {
+    start: Date.parse(`${day}T${clock(window.start)}:00-06:00`),
+    end: Date.parse(`${day}T${clock(window.end)}:00-06:00`),
+  };
+}
 
 function combineObserved(first: ObservedCondition | null, extras: PhotoRouting["suggestedCondition"][], received: number): ObservedCondition {
   if (received === 0) return "not_assessed";
@@ -117,9 +135,11 @@ export async function publishOffer(input: PublishInput, wiring: PublishWiring): 
   if (contradiction) reviewReasons.push(condition.reason);
   if (!intake.supply) reviewReasons.push("No se pudo extraer una oferta del texto; un operador debe revisarla.");
 
+  const now = input.now ?? Date.now();
   let gaps: OfferGap[] = [];
   let eligible: Offer["eligible"] = [];
   let tier: Offer["tier"] = null;
+  let case_: NetworkCase | null = null;
   if (intake.supply) {
     // The donor's registered address grounds the pickup only when the message names no place.
     const supply = !intake.supply.location && input.donorAddress
@@ -129,16 +149,19 @@ export async function publishOffer(input: PublishInput, wiring: PublishWiring): 
     gaps = built.gaps;
     warnings.push(...built.warnings);
     if (built.resource) {
+      built.resource.pickupWindow = shiftWindowToDay(built.resource.pickupWindow, now);
       built.resource.condition = condition.effective;
       if (condition.effective === "edible" && human?.condition !== "edible") {
         built.resource.conditionConfirmed = false;
         warnings.push({ code: "people_gated", message: "El tier people está cerrado hasta que confirmes que es apto para consumo humano." });
       }
-      const matches = matchResource(built.resource, liveNetwork(), built.resource.kg, Date.now());
+      const network = liveNetwork();
+      const matches = matchResource(built.resource, network, built.resource.kg, now);
       eligible = matches.filter((m) => m.eligible)
         .map((m) => ({ participantId: m.participantId, name: m.name, tier: m.tier, zone: m.zone, score: m.score, maxKg: m.maxKg }));
       tier = allocateTier(matches, []);
       if (eligible.length === 0) reviewReasons.push("Sin destino elegible por ahora; un operador debe revisarla.");
+      case_ = openCase(built.resource, network, now);
     }
   }
 
@@ -172,6 +195,8 @@ export async function publishOffer(input: PublishInput, wiring: PublishWiring): 
     reviewReasons,
     eligible,
     tier,
+    case: case_,
+    notifiedIds: case_ ? [...notified(case_)] : [],
     proposal: run.proposal,
     agentStatus: run.status,
     agentCode: run.code,
