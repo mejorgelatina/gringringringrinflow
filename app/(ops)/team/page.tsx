@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import type { InboxItem, Registration } from "@/lib/registry/types";
-import { CATEGORY_ES, hoursLabel } from "@/lib/registry/parse";
+import { hoursLabel } from "@/lib/registry/parse";
+import { acceptsCore, rolesLine } from "@/lib/registry/display";
 import { PLACES } from "@/lib/network/supply";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { firebaseClientAuth } from "@/lib/firebase/client";
@@ -11,7 +12,6 @@ import s from "./team.module.css";
 // The grinflow team's view: who registered through whatsapp, what is arriving, and the one decision that
 // is theirs — verify an organization before it enters the network. Contact data needs the operator key.
 
-const ROLE: Record<string, string> = { donor: "dona", receiver: "recibe para personas", maker: "maker", compost: "composta" };
 const STATUS: Record<string, string> = { pending: "pendiente", verified: "verificado", rejected: "rechazado" };
 const KIND: Record<string, string> = { offer: "oferta", need: "necesidad", registration: "registro", message: "mensaje" };
 const KEY = "grinflow-operator-key";
@@ -124,11 +124,11 @@ function RegCard({ r, busy, who, act }: { r: Registration; busy: boolean; who: s
     <div><span className={`${s.pill} ${s[r.status]}`}>{STATUS[r.status]}</span> <small>{r.source === "simulator" ? "simulador" : r.source}</small></div>
     <h3 className="keep-case">{r.name}</h3>
     <dl>
-      <dt>qué hace</dt><dd>{r.roles.map(x => ROLE[x]).join(", ")}</dd>
+      <dt>qué hace</dt><dd>{rolesLine(r.roles)}</dd>
       <dt>dirección</dt><dd className="keep-case">{r.address ?? "—"}{r.location ? ` · ${r.location.lat.toFixed(4)}, ${r.location.lng.toFixed(4)}` : " · sin ubicar"}</dd>
       <dt>horario</dt><dd className="keep-case">{hoursLabel(r.hours, r.hoursText)}</dd>
       <dt>contacto</dt><dd className="keep-case">{r.contacts.map(c => `${c.name} · ${c.phone}`).join("; ") || "—"}</dd>
-      {r.accepts && <><dt>recibe</dt><dd className="keep-case">{r.accepts.materials.length ? r.accepts.materials.join(", ") : r.accepts.categories.map(c => CATEGORY_ES[c] ?? c).join(", ") || r.accepts.text}{r.accepts.requires.length ? ` (${r.accepts.requires.join(", ")})` : ""}{r.accepts.weeklyKg ? ` · ~${r.accepts.weeklyKg} kg/sem` : ""}</dd></>}
+      {r.accepts && <><dt>recibe</dt><dd className="keep-case">{acceptsCore(r.accepts)}{r.accepts.weeklyKg ? ` · ~${r.accepts.weeklyKg} kg/sem` : ""}</dd></>}
       {r.selfPickup !== null && <><dt>logística</dt><dd>{r.selfPickup ? "recoge con su gente" : "manda su propio envío"}</dd></>}
       {r.generates && <><dt>le sobra</dt><dd className="keep-case">{r.generates.text}</dd></>}
       {r.verifiedBy && <><dt>revisó</dt><dd className="keep-case">{r.verifiedBy}</dd></>}

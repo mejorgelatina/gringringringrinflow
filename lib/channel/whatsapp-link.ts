@@ -1,7 +1,7 @@
 /** Prefilled first messages for the qr, the "open in whatsapp" buttons and the web chat. */
 export const OPENERS = {
-  es: { give: "Hola grinflow, tengo comida para donar", receive: "Hola grinflow, mi organización puede recibir comida" },
-  en: { give: "Hi grinflow, I have food to give", receive: "Hi grinflow, my organization can receive food" },
+  es: { give: "Hola grinflow, tengo comida para donar", receive: "Hola grinflow, mi organización puede recibir comida", register: "quiero registrar mi organización" },
+  en: { give: "Hi grinflow, I have food to give", receive: "Hi grinflow, my organization can receive food", register: "i want to register my organization" },
 } as const
 export type Lang = keyof typeof OPENERS
 export type Intent = keyof (typeof OPENERS)["es"]

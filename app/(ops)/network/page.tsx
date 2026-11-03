@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { availableKg } from "@/lib/network/coordinator";
 import { runScenario, scenarioNetwork, SCENARIOS, type ScenarioId } from "@/lib/network/demo";
 import { carriersEnabled } from "@/lib/network/features";
+import { ORG_FILTERS, ORG_FILTER_LABEL, countByFilter, filterParticipants, type OrgFilter } from "@/lib/network/filter";
 import { matchResource } from "@/lib/network/match";
 import { metrics, trackingStages } from "@/lib/network/outcomes";
 import { TIER_LABEL, TIERS, type Participant } from "@/lib/network/types";
@@ -52,6 +53,9 @@ export default function NetworkPage() {
   const scenarios = useMemo(() => Object.fromEntries(SCENARIOS.map(id => [id, runScenario(id)])) as Record<ScenarioId, ReturnType<typeof runScenario>>, []);
   const [id, setId] = useState<ScenarioId>("pan");
   const [step, setStep] = useState(0);
+  const [filter, setFilter] = useState<OrgFilter>("all");
+  const counts = useMemo(() => countByFilter(NET.participants), []);
+  const shown = useMemo(() => filterParticipants(NET.participants, filter), [filter]);
   const sc = scenarios[id];
   const cur = sc.steps[Math.min(step, sc.steps.length - 1)];
   const c = cur.state;
@@ -136,10 +140,11 @@ export default function NetworkPage() {
     </section>
 
     <section className="section-block">
-      <div className="section-head"><div><div className="eyebrow">registro de la red</div><h2>un solo modelo de participantes.</h2><p className="subhead">{NET.area.name}: zona a ≤ {NET.area.zoneAMaxMinutes} min (recolección directa), zona b ≤ {NET.area.zoneBMaxMinutes} min ({CARRIERS ? "envío cotizado o ruta existente" : "el receptor manda su propio envío"}), zona c no se ofrece.</p></div></div>
+      <div className="section-head"><div><div className="eyebrow">registro de la red</div><h2>un solo modelo de participantes.</h2><p className="subhead">{NET.area.name}: zona a ≤ {NET.area.zoneAMaxMinutes} min (recolección directa), zona b ≤ {NET.area.zoneBMaxMinutes} min ({CARRIERS ? "envío cotizado o ruta existente" : "el receptor manda su propio envío"}), zona c no se ofrece. todos los participantes de esta tabla son datos de demostración.</p></div></div>
+      <div className={s.tabs} role="group" aria-label="tipo de organización">{ORG_FILTERS.map(f => <button key={f} className={s.tab} aria-pressed={f === filter} onClick={() => setFilter(f)}>{ORG_FILTER_LABEL[f]}<small>· {counts[f]}</small></button>)}</div>
       <div className={s.tableWrap}><table className={s.registry}>
         <thead><tr><th>participante</th><th>rol</th><th>zona</th><th>validado</th><th>recibe</th></tr></thead>
-        <tbody>{NET.participants.map(p => <tr key={p.id}><td>{p.name}</td><td>{p.roles.map(r => ROLE[r]).join(", ")}{p.need ? ` · ${TIER_LABEL[p.need.tier]}` : ""}</td><td>{p.area}</td><td>{p.verified ? "sí" : "pendiente"}</td><td>{p.need ? needLine(p) : "—"}</td></tr>)}</tbody>
+        <tbody>{shown.map(p => <tr key={p.id}><td>{p.name}</td><td>{p.roles.map(r => ROLE[r]).join(", ")}{p.need ? ` · ${TIER_LABEL[p.need.tier]}` : ""}</td><td>{p.area}</td><td>{p.verified ? "sí" : "pendiente"}</td><td>{p.need ? needLine(p) : "—"}</td></tr>)}</tbody>
       </table></div>
       {CARRIERS && <div className={s.tableWrap} style={{ marginTop: 16 }}><table className={s.registry}>
         <thead><tr><th>capacidad logística</th><th>tipo</th><th>kg</th><th>tarifa (simulada)</th></tr></thead>
