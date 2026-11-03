@@ -1,5 +1,5 @@
 import { CATEGORY_ES } from "./parse.ts"
-import type { Accepts, RegisteredRole, RegistrationStatus } from "./types.ts"
+import type { Accepts, RegisteredRole, Registration, RegistrationStatus } from "./types.ts"
 
 // Display wording for registration roles and accepted materials, shared by the team view and the
 // onboarding summary so both say the same thing. Roles come from the "role" step, materials and
@@ -13,6 +13,16 @@ export const STATUS_LABEL: Record<RegistrationStatus, string> = { pending: "pend
 /** "dona · ej. restaurante, maker · ej. laboratorio" */
 export function rolesLine(roles: RegisteredRole[]): string {
   return roles.map((r) => `${ROLE_LABEL[r]} · ${ROLE_EXAMPLE[r]}`).join(", ")
+}
+
+/** What the organization itself may read through /api/org/me: everything except the team's internal notes. */
+export type PublicRegistration = Omit<Registration, "notes">;
+
+/** Strip team-internal notes before serving a registration to its owner. The team keeps full reads via /api/registry. */
+export function publicRegistration(reg: Registration): PublicRegistration {
+  const { notes: _teamInternal, ...pub } = reg;
+  void _teamInternal;
+  return pub;
 }
 
 /** Core of the accepts line (materials or categories plus specs); call sites add their own prefix and quantity suffix. */

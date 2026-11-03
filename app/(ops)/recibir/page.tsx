@@ -4,7 +4,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import type { InboxItem } from "@/lib/offers/inbox";
 import type { Reservation } from "@/lib/network/types";
-import type { Registration } from "@/lib/registry/types";
+import type { PublicRegistration } from "@/lib/registry/display";
 import { TeamSignIn } from "../team/sign-in";
 
 // Inbox for receivers, makers and compost (E4): lots addressed to us, holds, delivery choice.
@@ -26,7 +26,7 @@ export default function RecibirPage() {
   const auth = firebaseClientAuth();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(!auth);
-  const [reg, setReg] = useState<Registration | null>(null);
+  const [reg, setReg] = useState<PublicRegistration | null>(null);
   const [items, setItems] = useState<InboxItem[] | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");

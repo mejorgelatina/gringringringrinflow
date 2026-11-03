@@ -1,5 +1,4 @@
-import { acceptsCore } from "../registry/display.ts"
-import type { Registration } from "../registry/types.ts"
+import { acceptsCore, type PublicRegistration } from "../registry/display.ts"
 
 // Organization home content (E2): greeting data, badges and role sections computed only from the
 // organization's own registration. Activity sections (offers, holds, missions) stay empty until
@@ -7,7 +6,7 @@ import type { Registration } from "../registry/types.ts"
 
 export type Badge = { id: string; label: string; detail: string }
 
-export function badgesFor(reg: Registration): Badge[] {
+export function badgesFor(reg: PublicRegistration): Badge[] {
   if (reg.status !== "verified") return []
   return [{
     id: "verified",
@@ -18,7 +17,7 @@ export function badgesFor(reg: Registration): Badge[] {
 
 export type HomeSection = { key: string; title: string; body: string | null; empty: string }
 
-export function sectionsFor(reg: Registration): HomeSection[] {
+export function sectionsFor(reg: PublicRegistration): HomeSection[] {
   const out: HomeSection[] = []
   const accepts = reg.accepts ? acceptsCore(reg.accepts, { maker: reg.roles.includes("maker") }) : null
   if (reg.roles.includes("donor")) {

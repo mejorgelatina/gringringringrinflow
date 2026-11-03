@@ -5,7 +5,7 @@ import { firebaseClientAuth } from "@/lib/firebase/client";
 import { badgesFor, sectionsFor } from "@/lib/mi/home";
 import type { Offer } from "@/lib/offers/types";
 import { STATUS_LABEL, rolesLine } from "@/lib/registry/display";
-import type { Registration } from "@/lib/registry/types";
+import type { PublicRegistration } from "@/lib/registry/display";
 import { TeamSignIn } from "../team/sign-in";
 
 // Organization home (E2): greeting, verification status, real-data badges and role sections.
@@ -16,7 +16,7 @@ export default function MiPage() {
   const auth = firebaseClientAuth();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(!auth);
-  const [me, setMe] = useState<Registration | null>(null);
+  const [me, setMe] = useState<PublicRegistration | null>(null);
   const [none, setNone] = useState(false);
   const [offers, setOffers] = useState<Offer[] | null>(null);
   const [error, setError] = useState("");
@@ -33,7 +33,7 @@ export default function MiPage() {
       if (r.status === 404 || d?.error === "no-registration") { setMe(null); setNone(true); setOffers(null); return; }
       if (!r.ok || !d?.ok) throw new Error("no se pudo cargar tu inicio.");
       setMe(d.registration); setNone(false);
-      if ((d.registration as Registration).roles.includes("donor")) {
+      if ((d.registration as PublicRegistration).roles.includes("donor")) {
         const ro = await fetch("/api/offers", { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
         const od = await ro.json().catch(() => null);
         setOffers(ro.ok && od?.ok ? od.offers as Offer[] : []);

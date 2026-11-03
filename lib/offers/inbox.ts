@@ -1,17 +1,49 @@
 import { availableKg, notified, tick } from "../network/coordinator.ts";
 import { matchResource } from "../network/match.ts";
-import type { Ms, Network, NetworkCase, Quote, Reservation, Resource, Tier, Zone } from "../network/types.ts";
+import type { CaseStatus, Ms, Network, Quote, Reservation, Resource, Tier, Zone } from "../network/types.ts";
 import { choicesFor } from "./respond.ts";
-import type { Offer } from "./types.ts";
+import type { Offer, OfferGap, OfferStatus } from "./types.ts";
+import type { ConditionEvidence } from "../meta/photo-policy.ts";
 
-// The receiver view of an offer (E4): what the inbox shows, with pickup details hidden until the
-// receiver commits to a hold. Donors see their own lots whole; holders see the pickup point once
-// their reservation is scheduled.
+// The receiver view of an offer (E4): an allowlist projection, not an omit. Only the fields below
+// ever reach a receiver; ownership (donorUid, donorRegId), the donor's raw message, the eligible
+// list, the notified list, the agent data and other participants' holds stay on the server.
+// Pickup details unlock only once one of the viewer's holds is scheduled.
 
-export type RedactedResource = Omit<Resource, "location"> & { location: { lat: number; lng: number } | null };
-export type ViewerOffer = Omit<Offer, "case" | "location"> & {
+export type ViewerResource = Omit<Resource, "location" | "donorId"> & { location: { lat: number; lng: number } | null };
+
+export type ViewerCase = {
+  resource: ViewerResource;
+  status: CaseStatus;
+  activeTier: Tier | null;
+  passedTiers: Tier[];
+  /** Only the viewer's own holds. */
+  reservations: Reservation[];
+  publishedAt: Ms;
+};
+
+export type ViewerOffer = {
+  id: string;
+  donorName: string;
+  donorRegStatus: string;
+  createdAt: string;
+  status: OfferStatus;
+  item: string | null;
+  category: string | null;
+  quantity: number | null;
+  unit: string | null;
+  deadlineHour: number | null;
+  /** Null until one of the viewer's holds is scheduled. */
   location: string | null;
-  case: (Omit<NetworkCase, "resource"> & { resource: RedactedResource }) | null;
+  condition: ConditionEvidence;
+  photos: Offer["photos"];
+  icc: Offer["icc"];
+  gaps: OfferGap[];
+  warnings: OfferGap[];
+  reviewNeeded: boolean;
+  reviewReasons: string[];
+  tier: Tier | null;
+  case: ViewerCase | null;
 };
 
 export type InboxItem = {
@@ -36,12 +68,41 @@ function committed(mine: Reservation[]): boolean {
   return mine.some((r) => ["scheduled", "in_transit", "delivered"].includes(r.status));
 }
 
-function redact(offer: Offer, hidePickup: boolean): ViewerOffer {
-  if (!hidePickup) return offer as ViewerOffer;
+function redactResource(resource: Resource, hidePickup: boolean): ViewerResource {
+  const { donorId: _donor, location, ...rest } = resource;
+  void _donor;
+  return { ...rest, location: hidePickup ? null : location };
+}
+
+function redact(offer: Offer, viewerId: string, hidePickup: boolean): ViewerOffer {
   return {
-    ...offer,
-    location: null,
-    case: offer.case ? { ...offer.case, resource: { ...offer.case.resource, location: null } } : null,
+    id: offer.id,
+    donorName: offer.donorName,
+    donorRegStatus: offer.donorRegStatus,
+    createdAt: offer.createdAt,
+    status: offer.status,
+    item: offer.item,
+    category: offer.category,
+    quantity: offer.quantity,
+    unit: offer.unit,
+    deadlineHour: offer.deadlineHour,
+    location: hidePickup ? null : offer.location,
+    condition: offer.condition,
+    photos: offer.photos,
+    icc: offer.icc,
+    gaps: offer.gaps,
+    warnings: offer.warnings,
+    reviewNeeded: offer.reviewNeeded,
+    reviewReasons: offer.reviewReasons,
+    tier: offer.tier,
+    case: !offer.case ? null : {
+      resource: redactResource(offer.case.resource, hidePickup),
+      status: offer.case.status,
+      activeTier: offer.case.activeTier,
+      passedTiers: offer.case.passedTiers,
+      reservations: offer.case.reservations.filter((r) => r.participantId === viewerId),
+      publishedAt: offer.case.publishedAt,
+    },
   };
 }
 
@@ -62,7 +123,7 @@ export function inboxFor(offers: Offer[], participantId: string, network: Networ
         try { choices[r.id] = choicesFor(o, participantId, r.id, now, network); } catch { choices[r.id] = []; }
       }
       return {
-        offer: redact(o, !committed(mine)),
+        offer: redact(o, participantId, !committed(mine)),
         myMatch: m ? { tier: m.tier, zone: m.zone, etaMinutes: m.etaMinutes, roadKm: m.roadKm, maxKg: m.maxKg } : null,
         mine,
         availableKg: o.case ? availableKg(o.case) : 0,

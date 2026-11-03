@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import { ROLE_EXAMPLE, ROLE_LABEL, STATUS_LABEL, acceptsCore, rolesLine } from "@/lib/registry/display";
-import type { RegisteredRole, Registration } from "@/lib/registry/types";
+import type { PublicRegistration } from "@/lib/registry/display";
+import type { RegisteredRole } from "@/lib/registry/types";
 import { TeamSignIn } from "../team/sign-in";
 import s from "../team/team.module.css";
 
@@ -17,7 +18,7 @@ export default function CuentaPage() {
   const auth = firebaseClientAuth();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(!auth);
-  const [me, setMe] = useState<Registration | null>(null);
+  const [me, setMe] = useState<PublicRegistration | null>(null);
   const [none, setNone] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -104,7 +105,7 @@ export default function CuentaPage() {
       <div className="section-head"><div><h2 className="keep-case">{me.name}</h2><p className="subhead">{rolesLine(me.roles)}</p></div><span className={`status ${me.status === "verified" ? "ok" : "review"}`}>{STATUS_LABEL[me.status]}</span></div>
       {me.status === "pending" && <p className="empty">pendiente de verificación: el equipo revisa tu registro antes de que entre a la red. vuelve aquí para ver el estado.</p>}
       {me.status === "verified" && <p className="empty">verificada: ya puedes operar. tu inicio (/mi) llega en la siguiente entrega.</p>}
-      {me.status === "rejected" && <p className="empty">rechazada{me.notes ? `: ${me.notes}` : ". escribe al equipo para revisarla."}</p>}
+      {me.status === "rejected" && <p className="empty">rechazada. escribe al equipo para revisarla.</p>}
       <div className={s.bar}><span className={s.who}>id {me.id}</span></div>
       {me.accepts && <p className="subhead">recibe: <span className="keep-case">{acceptsCore(me.accepts, { maker: me.roles.includes("maker") })}{me.accepts.weeklyKg ? ` · ~${me.accepts.weeklyKg} kg/sem` : ""}</span></p>}
     </div>}
