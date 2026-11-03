@@ -13,6 +13,7 @@ export interface OffersStore {
   saveOffer(o: Offer): Promise<void>;
   getOffer(id: string): Promise<Offer | null>;
   listOffersByOwner(donorUid: string): Promise<Offer[]>;
+  listOffersNotified(participantId: string): Promise<Offer[]>;
 }
 
 export function createMemoryOffersStore(): OffersStore {
@@ -24,6 +25,10 @@ export function createMemoryOffersStore(): OffersStore {
     async getOffer(id) { const o = offers.get(id); return o ? copy(o) : null; },
     async listOffersByOwner(donorUid) {
       return [...offers.values()].filter((o) => o.donorUid === donorUid).map(copy)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+    async listOffersNotified(participantId) {
+      return [...offers.values()].filter((o) => o.notifiedIds.includes(participantId)).map(copy)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
   };
@@ -40,6 +45,10 @@ export function createFirestoreOffersStore(db: Firestore | null = firestore()): 
     async listOffersByOwner(donorUid) {
       // Single-field filter (no composite index needed); newest first, sorted in code.
       const q = await col.where("donorUid", "==", donorUid).get();
+      return q.docs.map((d) => d.data() as Offer).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+    async listOffersNotified(participantId) {
+      const q = await col.where("notifiedIds", "array-contains", participantId).get();
       return q.docs.map((d) => d.data() as Offer).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
   };
@@ -71,6 +80,7 @@ export function withOffersFallback(primary: OffersStore, backup: OffersStore = c
     saveOffer: (o) => both("write", () => primary.saveOffer(o), () => backup.saveOffer(o)),
     getOffer: (id) => run("read", () => primary.getOffer(id), () => backup.getOffer(id)),
     listOffersByOwner: (u) => run("read", () => primary.listOffersByOwner(u), () => backup.listOffersByOwner(u)),
+    listOffersNotified: (p) => run("read", () => primary.listOffersNotified(p), () => backup.listOffersNotified(p)),
   };
 }
 

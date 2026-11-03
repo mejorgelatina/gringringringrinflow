@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import type { Offer } from "@/lib/offers/types";
-import type { Registration } from "@/lib/registry/types";
+import type { PublicRegistration } from "@/lib/registry/display";
 import { TeamSignIn } from "../team/sign-in";
 
 // Publish an offer (E3): donor text plus up to three photos. The server runs extraction, ICC,
@@ -23,7 +23,7 @@ export default function PublicarPage() {
   const auth = firebaseClientAuth();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(!auth);
-  const [reg, setReg] = useState<Registration | null>(null);
+  const [reg, setReg] = useState<PublicRegistration | null>(null);
   const [none, setNone] = useState(false);
   const [message, setMessage] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);

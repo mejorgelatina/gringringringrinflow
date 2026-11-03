@@ -5,17 +5,18 @@ import { firebaseClientAuth } from "@/lib/firebase/client";
 import { badgesFor, sectionsFor } from "@/lib/mi/home";
 import type { Offer } from "@/lib/offers/types";
 import { STATUS_LABEL, rolesLine } from "@/lib/registry/display";
-import type { Registration } from "@/lib/registry/types";
+import type { PublicRegistration } from "@/lib/registry/display";
 import { TeamSignIn } from "../team/sign-in";
 
 // Organization home (E2): greeting, verification status, real-data badges and role sections.
-// Donor offers list their own published lots (E3); holds and missions stay empty until E4-E5.
+// Donor offers list their own published lots (E3) with a manage link (E4); receiver sections link
+// to the inbox (E4). Missions stay empty until E5.
 
 export default function MiPage() {
   const auth = firebaseClientAuth();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(!auth);
-  const [me, setMe] = useState<Registration | null>(null);
+  const [me, setMe] = useState<PublicRegistration | null>(null);
   const [none, setNone] = useState(false);
   const [offers, setOffers] = useState<Offer[] | null>(null);
   const [error, setError] = useState("");
@@ -32,7 +33,7 @@ export default function MiPage() {
       if (r.status === 404 || d?.error === "no-registration") { setMe(null); setNone(true); setOffers(null); return; }
       if (!r.ok || !d?.ok) throw new Error("no se pudo cargar tu inicio.");
       setMe(d.registration); setNone(false);
-      if ((d.registration as Registration).roles.includes("donor")) {
+      if ((d.registration as PublicRegistration).roles.includes("donor")) {
         const ro = await fetch("/api/offers", { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
         const od = await ro.json().catch(() => null);
         setOffers(ro.ok && od?.ok ? od.offers as Offer[] : []);
@@ -67,9 +68,11 @@ export default function MiPage() {
           {" · "}{o.status === "open" ? "abierta" : o.status === "needs_review" ? "en revisión" : "cerrada"}
           {o.tier ? ` · tier ${o.tier}` : ""} · {o.eligible.length} destino(s)
           {o.agentCode && <> · <a href={`/track?code=${o.agentCode}`}>{o.agentCode} ↗</a></>}
+          <> · <a href={`/ofertas/${o.id}`}>gestionar ↗</a></>
         </p>)}
       </div> : <div key={sec.key} className="section-block">
         <div className="section-head"><h2>{sec.title}</h2>{sec.key === "offers" && <a className="step" href="/publicar">publicar oferta ↗</a>}</div>
+        {["inbox", "material-offers", "incoming"].includes(sec.key) && <p><a href="/recibir">abrir bandeja /recibir ↗</a></p>}
         {sec.body ? <p className="keep-case">{sec.body}</p> : <p className="empty">{sec.empty}</p>}
       </div>)}
     </>}
