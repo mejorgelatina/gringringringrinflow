@@ -129,6 +129,7 @@ export function continueOnboarding(state: OnboardingState, input: OnboardingInpu
       const completed: Registration = {
         id: s.editingId ?? newId(ctx.now),
         phone: ctx.phone.replace(/\D/g, ""),
+        ownerUid: null,
         source: ctx.source,
         name: d.name ?? "sin nombre",
         roles: d.roles ?? [],

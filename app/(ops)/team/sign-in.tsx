@@ -20,7 +20,7 @@ const ERR: Record<string, string> = {
 };
 const message = (e: unknown) => ERR[(e as { code?: string })?.code ?? ""] ?? "no se pudo. intenta de nuevo.";
 
-export function TeamSignIn({ auth, user, onChange }: { auth: Auth; user: User | null; onChange: () => void }) {
+export function TeamSignIn({ auth, user, onChange, emailPlaceholder = "correo del equipo" }: { auth: Auth; user: User | null; onChange: () => void; emailPlaceholder?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,7 +44,7 @@ export function TeamSignIn({ auth, user, onChange }: { auth: Auth; user: User | 
   </div>;
 
   return <form className={s.bar} onSubmit={e => { e.preventDefault(); run(async () => { await signInWithEmailAndPassword(auth, email.trim(), password); }); }}>
-    <input type="email" autoComplete="email" placeholder="correo del equipo" value={email} onChange={e => setEmail(e.target.value)} aria-label="correo" required/>
+    <input type="email" autoComplete="email" placeholder={emailPlaceholder} value={email} onChange={e => setEmail(e.target.value)} aria-label="correo" required/>
     <input type="password" autoComplete="current-password" placeholder="contraseña" value={password} onChange={e => setPassword(e.target.value)} aria-label="contraseña" required minLength={6}/>
     <button className="primary" type="submit" disabled={busy}>entrar</button>
     <button className="secondary" type="button" disabled={busy || !email || password.length < 6} onClick={() => run(async () => {

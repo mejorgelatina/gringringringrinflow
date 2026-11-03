@@ -1,5 +1,5 @@
 import { CATEGORY_ES } from "./parse.ts"
-import type { Accepts, RegisteredRole } from "./types.ts"
+import type { Accepts, RegisteredRole, RegistrationStatus } from "./types.ts"
 
 // Display wording for registration roles and accepted materials, shared by the team view and the
 // onboarding summary so both say the same thing. Roles come from the "role" step, materials and
@@ -7,6 +7,8 @@ import type { Accepts, RegisteredRole } from "./types.ts"
 
 export const ROLE_LABEL: Record<RegisteredRole, string> = { donor: "dona", receiver: "recibe para personas", maker: "maker", compost: "composta" }
 export const ROLE_EXAMPLE: Record<RegisteredRole, string> = { donor: "ej. restaurante", receiver: "ej. banco de alimentos", maker: "ej. laboratorio", compost: "ej. centro de composta" }
+
+export const STATUS_LABEL: Record<RegistrationStatus, string> = { pending: "pendiente de verificación", verified: "verificada", rejected: "rechazada" }
 
 /** "dona · ej. restaurante, maker · ej. laboratorio" */
 export function rolesLine(roles: RegisteredRole[]): string {

@@ -15,6 +15,7 @@ export interface RegistryStore {
   saveConversation(c: Conversation): Promise<void>
   getRegistration(id: string): Promise<Registration | null>
   findRegistrationByPhone(phone: string): Promise<Registration | null>
+  findRegistrationByOwner(ownerUid: string): Promise<Registration | null>
   saveRegistration(r: Registration): Promise<void>
   listRegistrations(): Promise<Registration[]>
   addInbox(item: InboxItem): Promise<void>
@@ -36,6 +37,10 @@ export function createMemoryStore(): RegistryStore {
     async findRegistrationByPhone(phone) {
       const d = digits(phone)
       const r = [...registrations.values()].filter((x) => x.phone === d && x.status !== "rejected").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+      return r ? copy(r) : null
+    },
+    async findRegistrationByOwner(ownerUid) {
+      const r = [...registrations.values()].filter((x) => x.ownerUid === ownerUid).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
       return r ? copy(r) : null
     },
     async saveRegistration(r) { registrations.set(r.id, copy(r)) },
@@ -61,6 +66,10 @@ export function createFirestoreStore(db: Firestore | null = firestore()): Regist
     async findRegistrationByPhone(phone) {
       const q = await regs.where("phone", "==", digits(phone)).get()
       return q.docs.map((d) => d.data() as Registration).filter((r) => r.status !== "rejected").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null
+    },
+    async findRegistrationByOwner(ownerUid) {
+      const q = await regs.where("ownerUid", "==", ownerUid).get()
+      return q.docs.map((d) => d.data() as Registration).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null
     },
     async saveRegistration(r) { await regs.doc(r.id).set(JSON.parse(JSON.stringify(r))) },
     async listRegistrations() { const q = await regs.orderBy("createdAt", "desc").limit(500).get(); return q.docs.map((d) => d.data() as Registration) },
@@ -97,6 +106,7 @@ export function withFallback(primary: RegistryStore, backup: RegistryStore = cre
     saveConversation: (c) => both("write", () => primary.saveConversation(c), () => backup.saveConversation(c)),
     getRegistration: (id) => run("read", () => primary.getRegistration(id), () => backup.getRegistration(id)),
     findRegistrationByPhone: (p) => run("read", () => primary.findRegistrationByPhone(p), () => backup.findRegistrationByPhone(p)),
+    findRegistrationByOwner: (o) => run("read", () => primary.findRegistrationByOwner(o), () => backup.findRegistrationByOwner(o)),
     saveRegistration: (r) => both("write", () => primary.saveRegistration(r), () => backup.saveRegistration(r)),
     listRegistrations: () => run("read", () => primary.listRegistrations(), () => backup.listRegistrations()),
     addInbox: (i) => both("write", () => primary.addInbox(i), () => backup.addInbox(i)),

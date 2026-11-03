@@ -139,7 +139,7 @@ test("a location pin becomes the pickup point of the offer in progress", async (
 test("a registered donor doesn't repeat the address: the offer uses where it registered", async () => {
   const store = createMemoryStore()
   const at = new Date().toISOString()
-  await store.saveRegistration({ id: "reg-test", phone: "5215577778888", source: "webhook", name: "Panadería Orizaba", roles: ["donor"], address: "Orizaba 50, Roma Norte", location: { lat: 19.4194, lng: -99.1617 }, locationSource: "pin", area: "roma norte", hours: null, hoursText: "", contacts: [], accepts: null, generates: null, selfPickup: null, whatsappOptIn: true, status: "verified", createdAt: at, updatedAt: at, verifiedAt: at, verifiedBy: "ana", notes: null })
+  await store.saveRegistration({ id: "reg-test", phone: "5215577778888", ownerUid: null, source: "webhook", name: "Panadería Orizaba", roles: ["donor"], address: "Orizaba 50, Roma Norte", location: { lat: 19.4194, lng: -99.1617 }, locationSource: "pin", area: "roma norte", hours: null, hoursText: "", contacts: [], accepts: null, generates: null, selfPickup: null, whatsappOptIn: true, status: "verified", createdAt: at, updatedAt: at, verifiedAt: at, verifiedBy: "ana", notes: null })
   const t = await chat(store, "5215577778888")("Tenemos 20 cajas de pan fresco, recoger antes de las 6 pm")
   assert.ok(t.steps.some(s => s.step === "sender" && /Panadería Orizaba/.test(s.detail)))
   assert.deepEqual(t.intake?.supply?.point, { lat: 19.4194, lng: -99.1617 })

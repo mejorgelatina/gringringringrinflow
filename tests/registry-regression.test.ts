@@ -145,7 +145,7 @@ test("regression: addresses keep the raw text and only place known colonias", ()
 function makeRegistration(overrides: Partial<Registration> = {}): Registration {
   const at = "2026-11-02T12:00:00.000Z"
   return {
-    id: "reg-1", phone: "5215511112222", source: "webhook", name: "Org",
+    id: "reg-1", phone: "5215511112222", ownerUid: null, source: "webhook", name: "Org",
     roles: ["receiver"], address: null, location: null, locationSource: null, area: null,
     hours: null, hoursText: "", contacts: [], accepts: null, generates: null,
     selfPickup: null, whatsappOptIn: true, status: "pending",
@@ -159,7 +159,7 @@ function failingStore(): RegistryStore {
   return {
     kind: "firestore",
     getConversation: fail, saveConversation: fail, getRegistration: fail,
-    findRegistrationByPhone: fail, saveRegistration: fail, listRegistrations: fail,
+    findRegistrationByPhone: fail, findRegistrationByOwner: fail, saveRegistration: fail, listRegistrations: fail,
     addInbox: fail, listInbox: fail,
   }
 }
