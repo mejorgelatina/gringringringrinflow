@@ -50,7 +50,7 @@ const observedRank: Record<PhotoRouting["suggestedCondition"], number> = { unkno
  * to the day of `now` keeping the clock times (pilot timezone, UTC-6, like the engine), so holds,
  * waves and expiry work on any day the offer is published.
  */
-function shiftWindowToDay(window: { start: Ms; end: Ms }, now: Ms): { start: Ms; end: Ms } {
+export function shiftWindowToDay(window: { start: Ms; end: Ms }, now: Ms): { start: Ms; end: Ms } {
   const day = new Date(now - 6 * 3600_000).toISOString().slice(0, 10);
   const clock = (at: Ms) => new Date(at - 6 * 3600_000).toISOString().slice(11, 16);
   return {

@@ -3,8 +3,10 @@ import { use, useCallback, useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import type { NetworkEvent, Reservation } from "@/lib/network/types";
+import type { Mission } from "@/lib/offers/missions";
 import type { Offer } from "@/lib/offers/types";
 import { TeamSignIn } from "../../team/sign-in";
+import { MissionQr } from "../../mission-qr";
 
 // Donor view of one offer (E4): holds on the lot, declare weight, stop a handoff over an anomaly.
 
@@ -20,6 +22,7 @@ export default function OfertaPage({ params }: { params: Promise<{ id: string }>
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(!auth);
   const [offer, setOffer] = useState<Offer | null>(null);
+  const [missions, setMissions] = useState<Mission[] | null>(null);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -29,14 +32,18 @@ export default function OfertaPage({ params }: { params: Promise<{ id: string }>
   useEffect(() => auth ? onAuthStateChanged(auth, u => { setUser(u); setAuthReady(true); }) : undefined, [auth]);
 
   const load = useCallback(async () => {
-    if (!user) { setOffer(null); return; }
+    if (!user) { setOffer(null); setMissions(null); return; }
     setError(""); setMissing(false);
     try {
-      const r = await fetch(`/api/offers/${id}`, { cache: "no-store", headers: { Authorization: `Bearer ${await user.getIdToken()}` } });
+      const token = await user.getIdToken();
+      const r = await fetch(`/api/offers/${id}`, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
       const d = await r.json().catch(() => null);
       if (r.status === 404) { setMissing(true); return; }
       if (!r.ok || !d?.ok) throw new Error(d?.message || "no se pudo cargar la oferta.");
       setOffer(d.offer as Offer);
+      const rm = await fetch(`/api/offers/${id}/missions`, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
+      const dm = await rm.json().catch(() => null);
+      setMissions(rm.ok && dm?.ok ? dm.missions as Mission[] : []);
     } catch (e) { setError(e instanceof Error ? e.message : "error"); }
   }, [user, id]);
   useEffect(() => { if (authReady) load(); }, [load, authReady]);
@@ -92,6 +99,16 @@ export default function OfertaPage({ params }: { params: Promise<{ id: string }>
         <div className="section-head"><h2>apartados</h2></div>
         {holds.length === 0 && <p className="empty">nadie aparta este lote todavía.</p>}
         {holds.map(h => <HoldRow key={h.id} h={h} busy={busy} act={act} reason={reason} setReason={setReason} />)}
+      </div>
+      <div className="section-block">
+        <div className="section-head"><h2>misiones</h2></div>
+        {missions === null && <p className="empty">cargando misiones…</p>}
+        {missions !== null && missions.length === 0 && <p className="empty">sin misiones todavía. cada apartado programado abre la suya.</p>}
+        {missions?.map(m => <div key={m.id}>
+          <p>{m.kg} kg · {m.status === "active" ? "por recoger" : m.status === "completed" ? `completada (${m.receivedKg} kg)` : "vencida"}</p>
+          {m.status === "active" && <><MissionQr token={m.token} />
+            <p className="empty">muestra este qr al recolector en la puerta; código: <span className="keep-case">{m.token}</span>.</p></>}
+        </div>)}
       </div>
       <div className="section-block">
         <div className="section-head"><h2>bitácora</h2></div>

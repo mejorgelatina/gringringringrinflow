@@ -10,7 +10,7 @@ import { TeamSignIn } from "../team/sign-in";
 
 // Organization home (E2): greeting, verification status, real-data badges and role sections.
 // Donor offers list their own published lots (E3) with a manage link (E4); receiver sections link
-// to the inbox (E4). Missions stay empty until E5.
+// to the inbox with holds and missions (E4-E5).
 
 export default function MiPage() {
   const auth = firebaseClientAuth();

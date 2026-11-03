@@ -3,11 +3,13 @@ import { useCallback, useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import type { InboxItem } from "@/lib/offers/inbox";
+import type { MissionItem } from "@/lib/offers/missions";
 import type { Reservation } from "@/lib/network/types";
 import type { PublicRegistration } from "@/lib/registry/display";
 import { TeamSignIn } from "../team/sign-in";
 
 // Inbox for receivers, makers and compost (E4): lots addressed to us, holds, delivery choice.
+// Missions with their pickup codes (E5) list below the inbox.
 
 const TIER_LABEL: Record<string, string> = { people: "personas", transformation: "transformación", compost: "composta" };
 const STATUS_LABEL: Record<string, string> = {
@@ -28,6 +30,7 @@ export default function RecibirPage() {
   const [authReady, setAuthReady] = useState(!auth);
   const [reg, setReg] = useState<PublicRegistration | null>(null);
   const [items, setItems] = useState<InboxItem[] | null>(null);
+  const [missions, setMissions] = useState<MissionItem[] | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [kg, setKg] = useState<Record<string, string>>({});
@@ -36,19 +39,22 @@ export default function RecibirPage() {
   useEffect(() => auth ? onAuthStateChanged(auth, u => { setUser(u); setAuthReady(true); }) : undefined, [auth]);
 
   const load = useCallback(async () => {
-    if (!user) { setReg(null); setItems(null); return; }
+    if (!user) { setReg(null); setItems(null); setMissions(null); return; }
     setError("");
     try {
       const token = await user.getIdToken();
       const r = await fetch("/api/org/me", { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
       const d = await r.json().catch(() => null);
-      if (r.status === 404 || d?.error === "no-registration") { setReg(null); setItems(null); return; }
+      if (r.status === 404 || d?.error === "no-registration") { setReg(null); setItems(null); setMissions(null); return; }
       if (!r.ok || !d?.ok) throw new Error("no se pudo cargar tu organización.");
       setReg(d.registration);
       const ri = await fetch("/api/inbox", { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
       const di = await ri.json().catch(() => null);
       if (!ri.ok || !di?.ok) throw new Error("no se pudo cargar tu bandeja.");
       setItems(di.items as InboxItem[]);
+      const rm = await fetch("/api/missions", { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
+      const dm = await rm.json().catch(() => null);
+      setMissions(rm.ok && dm?.ok ? dm.missions as MissionItem[] : []);
     } catch (e) { setError(e instanceof Error ? e.message : "error"); }
   }, [user]);
   useEffect(() => { if (authReady) load(); }, [load, authReady]);
@@ -97,6 +103,12 @@ export default function RecibirPage() {
         <p className="empty">no hay lotes para ti ahora mismo. cuando un lote compatible te toque en una ola, aparecerá aquí.</p>
       </div>}
       {items?.map(item => <OfferCard key={item.offer.id} item={item} busy={busy} act={act} kg={kg} setKg={setKg} mode={mode} setMode={setMode} />)}
+      <div className="section-block">
+        <div className="section-head"><h2>mis misiones</h2><a className="step" href="/scan">escanear ↗</a></div>
+        {missions === null && <p className="empty">cargando tus misiones…</p>}
+        {missions !== null && missions.length === 0 && <p className="empty">sin misiones todavía. cuando programes un apartado, aquí aparece su qr para recoger.</p>}
+        {missions?.map(m => <MissionRow key={m.mission.id} m={m} />)}
+      </div>
     </>}
   </div>;
 }
@@ -157,5 +169,20 @@ function ReservationRow({ offerId, r, item, busy, act, mode, setMode }: {
     {(r.status === "held" || r.status === "scheduled") && <p><button className="secondary" disabled={!!busy}
       onClick={() => act(offerId, "cancel", { reservationId: r.id }, `c${r.id}`)}>
       {busy === `c${r.id}` ? "liberando…" : "liberar apartado"}</button></p>}
+  </div>;
+}
+
+const MISSION_LABEL: Record<string, string> = { active: "por recoger", completed: "completada", expired: "vencida" };
+
+function MissionRow({ m }: { m: MissionItem }) {
+  const title = m.item?.offer.item || m.item?.offer.category || "lote";
+  return <div>
+    <p><span className="keep-case">{title}</span> · {m.mission.kg} kg · {MISSION_LABEL[m.mission.status] ?? m.mission.status}
+      {m.item ? <> · de <span className="keep-case">{m.item.offer.donorName}</span></> : ""}
+      {" · "}recoger antes del {fmtTime(m.mission.windowEnd)}</p>
+    {m.item?.offer.location && <p className="keep-case">recolección: {m.item.offer.location}.</p>}
+    {m.mission.status === "active" && <p>código: <span className="keep-case">{m.mission.token}</span>. en la puerta, escanea el qr del donante o escribe este código en <a href="/scan">/scan</a> y confirma los kilos que sí llegaron.</p>}
+    {m.mission.status === "completed" && <p>recibidos {m.mission.receivedKg} kg el {fmtTime(m.mission.scannedAt ? Date.parse(m.mission.scannedAt) : null)}.</p>}
+    {m.mission.status === "expired" && <p className="empty">esta misión venció; el lote volvió a la cascada.</p>}
   </div>;
 }
