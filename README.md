@@ -2,6 +2,39 @@
 
 GrinFlow coordinates surplus food between donors, receivers and vehicles that are already moving. Meta's Muse Spark reads informal messages and photos; deterministic rules and a human operator decide. Track: Meta Global AI Developer Hackathon, "Build for Your World".
 
+## for judges: the short version
+
+**The problem.** Food that is still good gets thrown away while people go hungry, and organic waste that could be transformed rots in landfills and produces gases. Three things stop the connection: shelf life (value drops by the hour), geography (surplus is never where the need is) and coordination (nobody knows who has what, who can take it, or whether it arrived).
+
+**What GrinFlow does.** A donor writes or sends a photo, on WhatsApp or on the web. Muse Spark turns the messy message into structured data. Deterministic rules decide what is eligible (safety gates, time window, travel-time zones). A person verifies organizations and signs every decision. The lot follows a cascade: food for people first, then material transformation by a maker (for example eggshell to biomaterials), then compost. Every case gets a tracking code, a handoff code and verified receipt.
+
+**Where Meta's models run.** Everything at runtime uses the Meta Model API (default model `muse-spark-1.3`; no other model provider is called). All calls are off unless `MODEL_API_KEY` is set and `META_CALLS_ENABLED=true`, otherwise a labeled local fallback runs, so previews never spend credits.
+
+| Use | Code | What the model does |
+| --- | --- | --- |
+| Message intake | `lib/meta/meta.ts`, `lib/intake/` | reads an informal message and returns structured offer or need fields (item, amount, condition, deadline, location) |
+| Photo vision | `lib/meta/photo.ts`, `lib/meta/photo-policy.ts` | describes what is visible and grades the photo; fixed rules then limit what the photo can imply (it never certifies food safety) |
+| Intake agent planner and claims judge | `lib/agent/planner.ts`, `lib/agent/judge.ts` | plans which tool to call next (Responses API) and checks the claims the agent makes before a human signs |
+
+Every screen that runs a turn shows which provider ran (local or Meta), the model id and how many Meta calls it cost: see the trace on `/whatsapp`, `/intake` and `/agent`. The demo video shows live calls during the Meta credit window.
+
+**Two ways in, same brain.** WhatsApp (Cloud API test number, `/api/whatsapp/webhook`) and the web chat at `/send` both run the same handler, so the conversation, registration and offers behave the same. If you cannot message the test number, use `/send`, or `/whatsapp` (a simulator with step-by-step traces).
+
+**Try it in 2 minutes (no setup):** open the production site, go to `/send`, press "registrar mi organización" and answer the questions, then send `Tenemos 20 cajas de pan fresco en la colonia Roma, hay que recogerlas antes de las 6 pm.` The team view `/team` needs a team account (the video shows it).
+
+**Run it locally.** Node 22+ and pnpm:
+
+```bash
+pnpm install --frozen-lockfile
+cp .env.example .env.local   # optional: all Meta, WhatsApp and Firebase variables are off by default
+pnpm dev                     # http://localhost:3000
+pnpm test && pnpm typecheck  # full suite and types
+```
+
+Without any variables, everything runs in labeled local mode with in-memory storage. Real Meta calls need `MODEL_API_KEY` plus `META_CALLS_ENABLED=true`; durable storage needs the `FIREBASE_*` variables; WhatsApp needs the variables in [`docs/WHATSAPP_SETUP.md`](docs/WHATSAPP_SETUP.md).
+
+**Honest limits.** Places, distances and courier quotes in the demos are synthetic or simulated. Distances are straight-line estimates. Delivery partners such as Uber Direct are roadmap, not integrated. Organization accounts (login so each organization sees only its own data) are roadmap; today organizations register and a verified team signs in to `/team`. The photo never certifies safety, and a person always signs.
+
 ## What was built during the hackathon (Oct 26 – Nov 4, 2026)
 
 Everything below was built during the event. The git history shows it: every commit from 2026-10-28 onward.
@@ -21,6 +54,8 @@ Everything below was built during the event. The git history shows it: every com
 | Onboarding over WhatsApp: an organization registers itself in one short conversation (what it does, name, address or location pin, hours, contact, what it accepts or generates, picks up or sends its own courier, WhatsApp opt-in). A person verifies it in `/team` before it enters the network. Conversation memory (an answer completes the last offer), location pins, registered donors don't repeat their address, one team inbox of real offers and needs. Coordinated carriers hidden until validated: receivers pick up or send their own uber | `lib/registry/`, `/team`, `/api/registry`, `docs/ONBOARDING.md` | #13 |
 | Optional Firestore persistence: WhatsApp messages and durable webhook dedupe (first draft written with Manus, an outside AI agent, then reviewed here), tracking numbers | `lib/firebase/`, `lib/agent/registry.ts` | #9 |
 | Firebase Auth (email/password) for the team in `/team`: verified email + team list checked on the server, deny-all Firestore rules, `firebase.json` for the `grinflow` project | `lib/firebase/`, `lib/auth/team.ts`, `firestore.rules`, `docs/FIREBASE.md` | #14 |
+| Web parity: everything the channel does also works from `/send` (including sharing a location pin), makers visible on the landing, organization-type wording and filters in `/network`, accented place names fixed in replies, a Firebase-token verifier that runs on Vercel, per-IP rate limits on the public endpoints | `lib/channel/`, `lib/registry/display.ts`, `lib/network/filter.ts`, `lib/firebase/verify.ts`, `lib/whatsapp/rate-limit.ts` | #5, #7, #9, #10, #11 (this repo) |
+| English demo video script and judge-facing README | `docs/DEMO_VIDEO_SCRIPT.md`, `README.md` | this PR |
 
 The v0.10.x engines and documents were written by the team in a separate workspace during the event and imported in PRs #2 and #3. Some planning notes in `docs/v0.10/` are dated Oct 24–25: they are pre-event preparation (ideas and plans, no code).
 
@@ -129,7 +164,7 @@ If a live Meta test number is not available, open `/whatsapp` and use the same m
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm test        # node --test: 16 flow tests, 17 photo/intake tests, 11 WhatsApp tests, 4 backhaul tests, 47 v0.10.2 tests (Node 22.6+)
+pnpm test        # node --test, full suite (Node 22.6+)
 pnpm typecheck
 pnpm build
 curl -s -X POST localhost:3000/api/demo/offer-flow -d '{"decision":{"outcome":"approved"}}'
