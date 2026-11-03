@@ -29,6 +29,8 @@ export async function POST(request: Request) {
     if (claim === "duplicate") continue;
     const trace = await handleInbound(msg, ctx);
     recordTrace(trace);
+    // One line per turn for Vercel's Logs tab: outcome and failure steps only, never message text or numbers.
+    console.log("whatsapp turn", JSON.stringify({ replyStatus: trace.replyStatus, steps: trace.steps.map((s) => ["ignored", "reply", "memory", "photo", "inbox"].includes(s.step) ? `${s.step}: ${s.detail}` : s.step) }));
     try { await persistWhatsAppTurn(msg, trace); }
     catch (error) { console.error("Firebase WhatsApp persistence failed", error); }
     handled++;
