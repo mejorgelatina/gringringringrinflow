@@ -15,6 +15,7 @@ const Body = z.object({
   photoFixture: z.enum(["clean", "mold", "containers"]).optional()
 });
 export const runtime = "nodejs";
+export const maxDuration = 60;
 const overLimit = createRateLimiter(PUBLIC_WINDOW_MS, PUBLIC_MAX_PER_WINDOW);
 
 export async function POST(request: Request) {

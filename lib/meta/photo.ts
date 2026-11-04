@@ -49,7 +49,7 @@ export async function assessPhotoWithMeta(imageDataUrl: string, caption: string)
   const client = new OpenAI({
     apiKey: key,
     baseURL: process.env.META_BASE_URL || "https://api.meta.ai/v1",
-    timeout: 30_000,
+    timeout: 50_000,
     maxRetries: 0
   });
   // Image input uses the OpenAI-compatible content-part shape. Confirm with Meta that
