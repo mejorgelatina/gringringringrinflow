@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const validation = error instanceof z.ZodError;
     const status = validation ? 400 : 502;
     // Keep provider internals and request content out of the public response.
-    if (!validation) console.error(`[intake:${requestId}] provider request failed`, error instanceof Error ? error.name : "UnknownError");
+    if (!validation) console.error(`[intake:${requestId}] provider request failed`, error instanceof Error ? `${error.name}${typeof (error as { status?: unknown }).status === "number" ? ` status=${(error as { status: number }).status}` : ""}: ${error.message.slice(0, 160)}` : "UnknownError");
     return NextResponse.json({
       ok: false,
       requestId,
