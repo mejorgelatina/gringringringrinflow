@@ -1,5 +1,3 @@
-const demoVideoUrl = "https://docs.google.com/videos/d/1uQQ6K1KkQYtTCw_cPhtkiw2MGNcKQkcBEJQRKBSxalI/play?usp=sharing"
-
 const pipeline = ["WhatsApp Input", "Structured JSON Parsing", "Context Engine", "Decision Execution"]
 
 const liveDemos = [
@@ -28,26 +26,17 @@ export function DemoSection() {
             </p>
           </div>
 
-          {/* Google Vids has no embed code, so the player opens in a new tab. */}
-          <a
-            href={demoVideoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex aspect-video flex-col items-center justify-center gap-4 bg-secondary px-6 text-center"
+          {/* H.264/AAC mp4 served from /public so it plays in every browser, with no third-party embed. */}
+          <video
+            className="aspect-video w-full bg-secondary"
+            controls
+            playsInline
+            preload="metadata"
+            aria-label="GrinFlow demo video"
           >
-            <span
-              aria-hidden="true"
-              className="flex size-14 items-center justify-center rounded-full border border-foreground/30 transition-colors group-hover:border-foreground"
-            >
-              <svg viewBox="0 0 24 24" className="size-5 translate-x-px fill-foreground">
-                <path d="M8 5.5v13l11-6.5-11-6.5z" />
-              </svg>
-            </span>
-            <p className="text-sm text-foreground">Watch the demo video</p>
-            <p className="max-w-md font-mono text-[11px] tracking-[0.02em] text-muted-foreground">
-              Opens in a new tab · about 3 minutes
-            </p>
-          </a>
+            <source src="/video/grinflow-demo.mp4" type="video/mp4" />
+            <a href="/video/grinflow-demo.mp4">Download the GrinFlow demo video</a>
+          </video>
         </div>
 
         <div className="mt-8 grid gap-3 md:grid-cols-2">
