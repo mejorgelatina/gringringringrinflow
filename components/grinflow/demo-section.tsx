@@ -1,3 +1,5 @@
+const demoVideoUrl = "https://docs.google.com/videos/d/1uQQ6K1KkQYtTCw_cPhtkiw2MGNcKQkcBEJQRKBSxalI/play?usp=sharing"
+
 const pipeline = ["WhatsApp Input", "Structured JSON Parsing", "Context Engine", "Decision Execution"]
 
 const liveDemos = [
@@ -14,7 +16,7 @@ export function DemoSection() {
     <section id="demo" className="border-b border-border">
       <div className="mx-auto max-w-5xl px-6 py-20 md:py-24">
         <h2 className="eyebrow">Product Demo</h2>
-        <p className="mt-4 text-2xl tracking-tight md:text-3xl">90-Second MVP Demonstration</p>
+        <p className="mt-4 text-2xl tracking-tight md:text-3xl">Demo Video (3 Minutes)</p>
 
         <div className="mt-8 overflow-hidden rounded-md border border-border bg-card">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
@@ -22,24 +24,30 @@ export function DemoSection() {
             <span aria-hidden="true" className="size-2 rounded-full bg-muted-foreground/40" />
             <span aria-hidden="true" className="size-2 rounded-full bg-muted-foreground/40" />
             <p className="ml-2 font-mono text-[11px] tracking-[0.02em] text-muted-foreground">
-              grinflow — mvp walkthrough
+              grinflow — demo video
             </p>
           </div>
 
-          <div className="flex aspect-video flex-col items-center justify-center gap-4 bg-secondary px-6 text-center">
+          {/* Google Vids has no embed code, so the player opens in a new tab. */}
+          <a
+            href={demoVideoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex aspect-video flex-col items-center justify-center gap-4 bg-secondary px-6 text-center"
+          >
             <span
               aria-hidden="true"
-              className="flex size-14 items-center justify-center rounded-full border border-foreground/30"
+              className="flex size-14 items-center justify-center rounded-full border border-foreground/30 transition-colors group-hover:border-foreground"
             >
               <svg viewBox="0 0 24 24" className="size-5 translate-x-px fill-foreground">
                 <path d="M8 5.5v13l11-6.5-11-6.5z" />
               </svg>
             </span>
-            <p className="text-sm text-muted-foreground">Loom recording embed placeholder</p>
+            <p className="text-sm text-foreground">Watch the demo video</p>
             <p className="max-w-md font-mono text-[11px] tracking-[0.02em] text-muted-foreground">
-              Replace this container with the demo iframe
+              Opens in a new tab · about 3 minutes
             </p>
-          </div>
+          </a>
         </div>
 
         <div className="mt-8 grid gap-3 md:grid-cols-2">
