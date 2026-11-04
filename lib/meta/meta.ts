@@ -13,7 +13,7 @@ export async function extractWithMeta(message: string): Promise<Extraction> {
   const client = new OpenAI({
     apiKey: key,
     baseURL: process.env.META_BASE_URL || "https://api.meta.ai/v1",
-    timeout: 20_000,
+    timeout: 45_000,
     maxRetries: 0
   });
   const response = await client.chat.completions.create({
